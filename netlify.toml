@@ -1,0 +1,11 @@
+[build]
+  publish = "client/build"   # Assuming you're building your React app into this folder
+  command = "cd client && npm run build"
+
+[functions]
+  directory = "netlify-functions/netlify-functions"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
