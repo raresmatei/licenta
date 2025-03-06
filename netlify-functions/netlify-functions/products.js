@@ -66,7 +66,19 @@ const handler = async (event, context) => {
           delete filters.id;
         }
       
-        // Optionally, remove or adjust any filter values here if needed (e.g., cast numeric values)
+        // Build price filter if minPrice and/or maxPrice are provided
+        if (filters.minPrice || filters.maxPrice) {
+          const priceFilter = {};
+          if (filters.minPrice) {
+            priceFilter.$gte = parseFloat(filters.minPrice);
+          }
+          if (filters.maxPrice) {
+            priceFilter.$lte = parseFloat(filters.maxPrice);
+          }
+          filters.price = priceFilter;
+          delete filters.minPrice;
+          delete filters.maxPrice;
+        }
       
         // Use the filters object in the query
         const products = await Product.find(filters);
@@ -74,7 +86,7 @@ const handler = async (event, context) => {
           statusCode: 200,
           body: JSON.stringify({ products }),
         };
-      }
+      }      
       
       case 'POST': {
         // Parse the multipart form data using lambda-multipart-parser
@@ -103,11 +115,13 @@ const handler = async (event, context) => {
           imageUrls.push(uploadResult.secure_url);
         }
         // Extract text fields from the parsed result
-        const { name, price, description } = result;
+        const { name, price, description, category, brand } = result;
         const newProduct = new Product({
           name,
           price,
           description,
+          category,
+          brand,
           images: imageUrls,
         });
         await newProduct.save();

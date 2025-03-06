@@ -22,6 +22,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import axios from 'axios';
+import ProductFilter from '../components/ProductFilter';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -34,6 +35,8 @@ const AdminDashboard = () => {
     name: '',
     price: '',
     description: '',
+    brand: '',
+    category: '',
     images: []  // Now an array of File objects
   });
   const [isSaving, setIsSaving] = useState(false);
@@ -75,7 +78,7 @@ const AdminDashboard = () => {
   // Open the dialog for adding a new product
   const handleDialogOpen = () => {
     setEditingProduct(null);
-    setFormData({ name: '', price: '', images: [], description: '' });
+    setFormData({ name: '', price: '', images: [], description: '', brand: '', category: '' });
     setDialogOpen(true);
   };
 
@@ -109,15 +112,17 @@ const AdminDashboard = () => {
   const handleSaveProduct = async () => {
     if (isSaving) return; // Prevent duplicate submission
     setIsSaving(true);
-  
+
     const formDataToSend = new FormData();
     formDataToSend.append('name', formData.name);
     formDataToSend.append('price', formData.price);
     formDataToSend.append('description', formData.description);
+    formDataToSend.append('brand', formData.brand);
+   formDataToSend.append('category', formData.category);
     if (editingProduct) {
       formDataToSend.append('id', formData.id);
     }
-  
+
     // Separate new file objects from existing URL strings
     const newFiles = [];
     const existingUrls = [];
@@ -128,15 +133,15 @@ const AdminDashboard = () => {
         existingUrls.push(item);
       }
     });
-  
+
     // Append new file objects to FormData
     newFiles.forEach((file) => {
       formDataToSend.append('images', file);
     });
-  
+
     // Append the existing image URLs as a JSON string
     formDataToSend.append('existingImages', JSON.stringify(existingUrls));
-  
+
     try {
       let response;
       if (editingProduct) {
@@ -168,7 +173,7 @@ const AdminDashboard = () => {
     } finally {
       setIsSaving(false);
     }
-  };    
+  };
 
   // Open the dialog with product data for editing
   const handleEditProduct = (product) => {
@@ -178,7 +183,9 @@ const AdminDashboard = () => {
       name: product.name,
       price: product.price,
       images: product.images,
-      description: product.description
+      description: product.description,
+      brand: product.brand,
+      category: product.category
     });
     setDialogOpen(true);
   };
@@ -205,6 +212,10 @@ const AdminDashboard = () => {
     });
   };
 
+  const handleFilter = (filteredProducts) => {
+    setProducts(filteredProducts);
+  };
+
   // Logout admin
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -227,6 +238,7 @@ const AdminDashboard = () => {
         </Box>
       </Paper>
 
+      <ProductFilter baseUrl={baseUrl} token={token} onFilter={handleFilter} />
       <Paper>
         <Table>
           <TableHead>
@@ -295,6 +307,24 @@ const AdminDashboard = () => {
             value={formData.price}
             onChange={handleFormChange}
           />
+          <TextField
+            margin="dense"
+            label="Brand"
+            name="brand"
+            fullWidth
+            variant="outlined"
+            value={formData.brand}
+            onChange={handleFormChange}
+          />
+          <TextField
+            margin="dense"
+            label="Category"
+            name="category"
+            fullWidth
+            variant="outlined"
+            value={formData.category}
+            onChange={handleFormChange}
+          />
           <Button variant="contained" component="label">
             Upload Image
             <input type="file" hidden accept="image/*" onChange={handleFileChange} />
@@ -320,7 +350,7 @@ const AdminDashboard = () => {
                       height: 150,
                       objectFit: 'cover',
                       borderRadius: '8px'
-                    }}F
+                    }} F
                   />
                   <IconButton
                     onClick={() => handleRemoveImage(index)}

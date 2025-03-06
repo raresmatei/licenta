@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Container, Typography, Button, Grid, Card, CardMedia, CardContent } from '@mui/material';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import ProductFilter from '../components/ProductFilter';
 
 const LandingPage = () => {
   const [products, setProducts] = useState([]);
@@ -18,6 +19,10 @@ const LandingPage = () => {
     } catch (error) {
       console.error('Error fetching products:', error);
     }
+  };
+
+  const handleFilter = (filteredProducts) => {
+    setProducts(filteredProducts);
   };
 
   useEffect(() => {
@@ -47,6 +52,7 @@ const LandingPage = () => {
         <Typography variant="h4" component="h2" gutterBottom align="center" marginTop={20}>
           Featured Products
         </Typography>
+        <ProductFilter baseUrl={baseUrl} token={token} onFilter={handleFilter} />
         <Grid container spacing={4} justifyContent="center">
           {products.map((product, index) => (
             <Grid item key={index} xs={12} sm={6} md={4}>
@@ -61,6 +67,12 @@ const LandingPage = () => {
                   <CardContent>
                     <Typography variant="h6" component="div">
                       {product.title}
+                    </Typography>
+                    <Typography variant="h6" component="div">
+                      {product.category}
+                    </Typography>
+                    <Typography variant="h6" component="div">
+                      {product.brand}
                     </Typography>
                     <Typography variant="body1" color="text.secondary">
                       {product.price}

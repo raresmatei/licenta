@@ -9,14 +9,18 @@ import {
     TableCell,
     IconButton,
     Button,
-    Box
+    Box,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions
 } from '@mui/material';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import CheckoutForm from '../components/CheckoutForm';
 
 const Cart = () => {
     const [confirmDelete, setConfirmDelete] = useState({ open: false, item: null });
@@ -24,6 +28,7 @@ const Cart = () => {
     const [cartProducts, setCardProducts] = useState([]);
     const token = localStorage.getItem('token');
     const baseUrl = process.env.REACT_APP_API_BASE_URL || '';
+    const [checkoutOpen, setCheckoutOpen] = useState(false);
     const navigate = useNavigate();
 
     const fetchCart = async () => {
@@ -32,49 +37,33 @@ const Cart = () => {
                 headers: { Authorization: `Bearer ${token}` },
                 withCredentials: true,
             });
-
-            // const cartProducts = await Promise.all(response.data.cart.items.map(async (item)=>({
-            //     ...item,
-            //     product: await fetchProduct(item.product)
-            // })))
-
-            // console.log('prods: ', cartProducts)
-
-
             setCart(response.data.cart);
         } catch (error) {
             console.error("Error fetching cart:", error);
         }
     };
 
+    // For each item in cart, fetch the product details
     const collectProducts = async () => {
-        console.log('in collect, cart: ', cart)
-        const cartProducts = await Promise.all(cart.items.map(async (item) => ({
-            ...item,
-            product: await fetchProduct(item.product)
-        })))
-
-        console.log('in collect, cart prods: ', cartProducts)
-
+        const cartProducts = await Promise.all(
+            cart.items.map(async (item) => ({
+                ...item,
+                product: await fetchProduct(item.product)
+            }))
+        );
         return cartProducts;
-    }
+    };
 
-    useEffect(() => {
-        console.log(' in use eff');
-        fetchCart();
-    }, []);
-
-    useEffect( () => {
-        const loadCartProducts = async () => {
-            if (cart) {
-              const prods = await collectProducts();
-              setCardProducts(prods);
-              console.log('after SET');
-              console.log('cart prods: ', prods);
-            }
-          };
-          loadCartProducts();
-    }, [cart])
+    const fetchProduct = async (id) => {
+        try {
+            const response = await axios.get(`${baseUrl}/products/?id=${id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            return response.data.products[0];
+        } catch (error) {
+            console.error('Error fetching product details:', error);
+        }
+    };
 
     // Updates item quantity (if quantity reaches 0, item is removed)
     const updateQuantity = async (productId, newQuantity) => {
@@ -99,22 +88,54 @@ const Cart = () => {
         updateQuantity(item.product._id, newQuantity);
     };
 
-    const fetchProduct = async (id) => {
+    const handleDelete = (item) => {
+        updateQuantity(item.product._id, 0);
+    };
+
+    // 👇 NEW - transform cart items to lineItems & call createCheckoutSession
+    const handleCheckout = async (checkoutData) => {
         try {
-            const response = await axios.get(`${baseUrl}/products/?id=${id}`, {
+            // Build line items from cartProducts
+            const lineItems = cartProducts.map((item) => ({
+                price_data: {
+                    currency: 'usd',
+                    product_data: { name: item.product.name },
+                    // Convert to cents
+                    unit_amount: Math.round(item.product.price * 100)
+                },
+                quantity: item.quantity,
+            }));
+
+            // Call your createCheckoutSession Netlify function
+            const response = await axios.post(`${baseUrl}/createCheckoutSession`, {
+                lineItems,
+                successUrl: 'http://localhost:3000/',
+                cancelUrl: 'http://localhost:3000/cart'
+            }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
-            return response.data.products[0]
+            // Redirect user to the Stripe Checkout page
+            window.location.href = response.data.url;
         } catch (error) {
-            console.error('Error fetching product details:', error);
+            console.error('Error creating checkout session:', error);
+            alert('Payment failed, please try again.');
         }
     };
 
-    const handleDelete = (item) => {
-        // Setting quantity to 0 will remove the item per backend logic
-        updateQuantity(item.product._id, 0);
-    };
+    useEffect(() => {
+        fetchCart();
+    }, []);
+
+    useEffect(() => {
+        if (cart) {
+            const loadCartProducts = async () => {
+                const prods = await collectProducts();
+                setCardProducts(prods);
+            };
+            loadCartProducts();
+        }
+    }, [cart]);
 
     if (!cart) {
         return (
@@ -155,9 +176,7 @@ const Cart = () => {
                                     </Box>
                                 </TableCell>
                                 <TableCell>{item.quantity}</TableCell>
-                                <TableCell>
-                                    ${(item.product.price * item.quantity).toFixed(2)}
-                                </TableCell>
+                                <TableCell>${(item.product.price * item.quantity).toFixed(2)}</TableCell>
                                 <TableCell>
                                     <IconButton onClick={() => handleIncrement(item)}>
                                         <AddIcon />
@@ -176,8 +195,9 @@ const Cart = () => {
                         ))}
                     </TableBody>
                 </Table>
-
             )}
+
+            {/* Delete Confirmation Dialog */}
             <Dialog
                 open={confirmDelete.open}
                 onClose={() => setConfirmDelete({ open: false, item: null })}
@@ -187,14 +207,11 @@ const Cart = () => {
                     <Typography>Are you sure you want to delete this item?</Typography>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setConfirmDelete({ open: false, item: null })}>
-                        Cancel
-                    </Button>
+                    <Button onClick={() => setConfirmDelete({ open: false, item: null })}>Cancel</Button>
                     <Button
                         variant="contained"
                         color="error"
                         onClick={async () => {
-                            // Confirm deletion by setting quantity to 0 for the selected item
                             await updateQuantity(confirmDelete.item.product._id, 0);
                             setConfirmDelete({ open: false, item: null });
                         }}
@@ -204,11 +221,19 @@ const Cart = () => {
                 </DialogActions>
             </Dialog>
 
+            {/* Checkout Button */}
             <Box sx={{ mt: 2 }}>
-                <Button variant="contained" onClick={() => navigate('/checkout')}>
+                <Button variant="contained" onClick={() => setCheckoutOpen(true)}>
                     Checkout
                 </Button>
             </Box>
+
+            {/* CheckoutForm: collects shipping/payment; calls handleCheckout */}
+            <CheckoutForm
+                open={checkoutOpen}
+                onClose={() => setCheckoutOpen(false)}
+                onCheckout={handleCheckout} // Pass the callback
+            />
         </Container>
     );
 };
