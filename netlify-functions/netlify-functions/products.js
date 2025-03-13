@@ -19,7 +19,7 @@ const multipart = require('lambda-multipart-parser');
 const handler = async (event, context) => {
   // Verify the admin token from the Authorization header
   const authHeader = event.headers.authorization || event.headers.Authorization;
-  if (!authHeader) {
+  if (!authHeader && ['PUT', 'POST', 'DELETE'].includes(event.httpMethod)) {
     return {
       statusCode: 401,
       body: JSON.stringify({ error: 'Missing Authorization header' }),
@@ -60,6 +60,13 @@ const handler = async (event, context) => {
         // Get all query parameters as filters
         const filters = event.queryStringParameters || {};
       
+        // Extract pagination parameters
+        const page = parseInt(filters.page, 10) || 1;
+        const limit = parseInt(filters.limit, 10) || 30;
+        const skip = (page - 1) * limit;
+        delete filters.page;
+        delete filters.limit;
+      
         // If an "id" filter is provided, map it to _id
         if (filters.id) {
           filters._id = filters.id;
@@ -80,13 +87,15 @@ const handler = async (event, context) => {
           delete filters.maxPrice;
         }
       
-        // Use the filters object in the query
-        const products = await Product.find(filters);
+        // Query with pagination
+        const products = await Product.find(filters).skip(skip).limit(limit);
+        const totalCount = await Product.countDocuments(filters);
+      
         return {
           statusCode: 200,
-          body: JSON.stringify({ products }),
+          body: JSON.stringify({ products, totalCount, page, limit }),
         };
-      }      
+      }    
       
       case 'POST': {
         // Parse the multipart form data using lambda-multipart-parser
@@ -136,7 +145,7 @@ const handler = async (event, context) => {
         const result = await multipart.parse(event);
         
         // Extract text fields; expected fields: id, name, price, description, existingImages
-        const { id, name, price, description, existingImages } = result;
+        const { id, name, price, description, existingImages, category } = result;
         if (!id) {
           return {
             statusCode: 400,
@@ -181,6 +190,7 @@ const handler = async (event, context) => {
           name,
           price,
           description,
+          category,
           images: mergedImages
         };
         
