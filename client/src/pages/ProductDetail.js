@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Container, Card, CardMedia, CardContent, Typography, Button, Box } from '@mui/material';
 import ArrowBackIosIcon from '@mui/icons-material/ArrowBackIos';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import IconButton from '@mui/material/IconButton';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
+import { CartContext } from '../context/CartContext';
 
 const ProductDetail = () => {
     const { id } = useParams();
@@ -12,6 +13,7 @@ const ProductDetail = () => {
     const baseUrl = process.env.REACT_APP_API_BASE_URL || '';
     const token = localStorage.getItem('token');
     const [currentImage, setCurrentImage] = useState(0);
+    const { refreshCart } = useContext(CartContext);
 
     useEffect(() => {
         // Fetch product details from your API using the product id.
@@ -27,6 +29,7 @@ const ProductDetail = () => {
             }
         };
         fetchProduct();
+
     }, [id]);
 
     const handleAddToCart = async () => {
@@ -38,7 +41,7 @@ const ProductDetail = () => {
                 { productId: product._id, quantity: 1 },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
-            alert('Product added to cart!');
+            refreshCart()
         } catch (error) {
             console.error('Error adding to cart:', error);
             alert('Error adding product to cart.');

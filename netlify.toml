@@ -1,9 +1,14 @@
 [build]
-  publish = "client/build"   # Assuming you're building your React app into this folder
   command = "cd client && npm run build"
+  publish = "client/build"
+  functions = "netlify-functions/functions"
+
+[dev]
+  functions = "netlify-functions/functions"
+  publish = "client/build"
 
 [functions]
-  directory = "netlify-functions/netlify-functions"
+  directory = "netlify-functions/functions"
 
 [[redirects]]
   from = "/api/*"

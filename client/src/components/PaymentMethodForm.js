@@ -24,7 +24,7 @@ const PaymentMethodForm = ({ paymentMethod, setPaymentMethod, cardInfo, setCardI
           Cash Payment
         </Button>
       </Box>
-      {paymentMethod === 'card' && (
+      {/* {paymentMethod === 'card' && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <TextField
             label="Card Number"
@@ -48,7 +48,7 @@ const PaymentMethodForm = ({ paymentMethod, setPaymentMethod, cardInfo, setCardI
             fullWidth
           />
         </Box>
-      )}
+      )} */}
     </Box>
   );
 };

@@ -1,57 +1,32 @@
-import React, { useState, useEffect } from 'react';
-import {
-    Container,
-    Typography,
-    Table,
-    TableHead,
-    TableBody,
-    TableRow,
-    TableCell,
-    IconButton,
-    Button,
-    Box,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions
-} from '@mui/material';
+// In your Cart component (src/pages/Cart.js)
+import React, { useState, useEffect, useContext } from 'react';
+import { Container, Typography, Table, TableHead, TableBody, TableRow, TableCell, IconButton, Button, Box, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CheckoutForm from '../components/CheckoutForm';
+import { CartContext } from '../context/CartContext';
 
 const Cart = () => {
     const [confirmDelete, setConfirmDelete] = useState({ open: false, item: null });
-    const [cart, setCart] = useState(null);
     const [cartProducts, setCardProducts] = useState([]);
     const token = localStorage.getItem('token');
     const baseUrl = process.env.REACT_APP_API_BASE_URL || '';
     const [checkoutOpen, setCheckoutOpen] = useState(false);
     const navigate = useNavigate();
+    const { cart, refreshCart } = useContext(CartContext);
 
-    const fetchCart = async () => {
-        try {
-            const response = await axios.get(`${baseUrl}/cart`, {
-                headers: { Authorization: `Bearer ${token}` },
-                withCredentials: true,
-            });
-            setCart(response.data.cart);
-        } catch (error) {
-            console.error("Error fetching cart:", error);
-        }
-    };
-
-    // For each item in cart, fetch the product details
-    const collectProducts = async () => {
-        const cartProducts = await Promise.all(
+    const fetchCartProducts = async () => {
+        if (!cart || cart.items.length === 0) return;
+        const prods = await Promise.all(
             cart.items.map(async (item) => ({
                 ...item,
                 product: await fetchProduct(item.product)
             }))
         );
-        return cartProducts;
+        setCardProducts(prods);
     };
 
     const fetchProduct = async (id) => {
@@ -65,7 +40,6 @@ const Cart = () => {
         }
     };
 
-    // Updates item quantity (if quantity reaches 0, item is removed)
     const updateQuantity = async (productId, newQuantity) => {
         try {
             const response = await axios.patch(
@@ -73,9 +47,10 @@ const Cart = () => {
                 { productId, quantity: newQuantity },
                 { headers: { Authorization: `Bearer ${token}` }, withCredentials: true }
             );
-            setCart(response.data.cart);
+            // After an update, refresh the cart in context
+            await refreshCart();
         } catch (error) {
-            console.error("Error updating quantity:", error);
+            console.error('Error updating quantity:', error);
         }
     };
 
@@ -92,21 +67,17 @@ const Cart = () => {
         updateQuantity(item.product._id, 0);
     };
 
-    // 👇 NEW - transform cart items to lineItems & call createCheckoutSession
+    // Checkout callback (unchanged)
     const handleCheckout = async (checkoutData) => {
         try {
-            // Build line items from cartProducts
-            const lineItems = cartProducts.map((item) => ({
+            const lineItems = cart.items.map(async (item) => ({
                 price_data: {
                     currency: 'usd',
-                    product_data: { name: item.product.name },
-                    // Convert to cents
-                    unit_amount: Math.round(item.product.price * 100)
+                    product_data: { name: (await fetchProduct(item.product)).name },
+                    unit_amount: Math.round((await fetchProduct(item.product)).price * 100)
                 },
                 quantity: item.quantity,
             }));
-
-            // Call your createCheckoutSession Netlify function
             const response = await axios.post(`${baseUrl}/createCheckoutSession`, {
                 lineItems,
                 successUrl: 'http://localhost:3000/',
@@ -114,8 +85,6 @@ const Cart = () => {
             }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-
-            // Redirect user to the Stripe Checkout page
             window.location.href = response.data.url;
         } catch (error) {
             console.error('Error creating checkout session:', error);
@@ -124,17 +93,8 @@ const Cart = () => {
     };
 
     useEffect(() => {
-        fetchCart();
-    }, []);
-
-    useEffect(() => {
-        if (cart) {
-            const loadCartProducts = async () => {
-                const prods = await collectProducts();
-                setCardProducts(prods);
-            };
-            loadCartProducts();
-        }
+        fetchCartProducts();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [cart]);
 
     if (!cart) {
@@ -149,6 +109,9 @@ const Cart = () => {
         <Container sx={{ mt: 4 }}>
             <Typography variant="h4" gutterBottom>
                 Your Shopping Cart
+            </Typography>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+                Total Items: {cart.itemCount || 0}
             </Typography>
             {cartProducts.length === 0 ? (
                 <Typography>Your cart is empty.</Typography>
@@ -166,14 +129,16 @@ const Cart = () => {
                         {cartProducts.map((item) => (
                             <TableRow key={item._id}>
                                 <TableCell>
-                                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                        <img
-                                            src={item.product.images ? item.product.images[0] : item.product.image}
-                                            alt={item.product.name}
-                                            style={{ width: 50, height: 50, marginRight: 10, objectFit: 'cover' }}
-                                        />
-                                        {item.product.name}
-                                    </Box>
+                                    <Link to={`/product/${item.product._id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                            <img
+                                                src={item.product.images ? item.product.images[0] : item.product.image}
+                                                alt={item.product.name}
+                                                style={{ width: 50, height: 50, marginRight: 10, objectFit: 'cover' }}
+                                            />
+                                            {item.product.name}
+                                        </Box>
+                                    </Link>
                                 </TableCell>
                                 <TableCell>{item.quantity}</TableCell>
                                 <TableCell>${(item.product.price * item.quantity).toFixed(2)}</TableCell>
@@ -181,10 +146,7 @@ const Cart = () => {
                                     <IconButton onClick={() => handleIncrement(item)}>
                                         <AddIcon />
                                     </IconButton>
-                                    <IconButton
-                                        onClick={() => handleDecrement(item)}
-                                        disabled={item.quantity <= 1}
-                                    >
+                                    <IconButton onClick={() => handleDecrement(item)} disabled={item.quantity <= 1}>
                                         <RemoveIcon />
                                     </IconButton>
                                     <IconButton onClick={() => setConfirmDelete({ open: true, item })}>
@@ -193,11 +155,11 @@ const Cart = () => {
                                 </TableCell>
                             </TableRow>
                         ))}
+
                     </TableBody>
                 </Table>
             )}
 
-            {/* Delete Confirmation Dialog */}
             <Dialog
                 open={confirmDelete.open}
                 onClose={() => setConfirmDelete({ open: false, item: null })}
@@ -221,18 +183,16 @@ const Cart = () => {
                 </DialogActions>
             </Dialog>
 
-            {/* Checkout Button */}
             <Box sx={{ mt: 2 }}>
                 <Button variant="contained" onClick={() => setCheckoutOpen(true)}>
                     Checkout
                 </Button>
             </Box>
 
-            {/* CheckoutForm: collects shipping/payment; calls handleCheckout */}
             <CheckoutForm
                 open={checkoutOpen}
                 onClose={() => setCheckoutOpen(false)}
-                onCheckout={handleCheckout} // Pass the callback
+                onCheckout={handleCheckout}
             />
         </Container>
     );

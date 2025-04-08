@@ -22,7 +22,6 @@ const Register = () => {
     try {
       // Use the base URL to call the register endpoint.
       const response = await axios.post(`${baseUrl}/register`, formData);
-      console.log('Registration successful:', response.data);
       navigate('/login');
     } catch (err) {
       console.error('Registration error:', err);

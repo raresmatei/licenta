@@ -23,6 +23,7 @@ import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import axios from 'axios';
 import ProductFilter from '../components/ProductFilter';
+import InfiniteProductList from '../components/InfiniteProductList';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -39,6 +40,7 @@ const AdminDashboard = () => {
     category: '',
     images: []  // Now an array of File objects
   });
+  const [filters, setFilters] = useState(null)
   const [isSaving, setIsSaving] = useState(false);
 
   const baseUrl = process.env.REACT_APP_API_BASE_URL || '';
@@ -58,22 +60,6 @@ const AdminDashboard = () => {
       navigate('/login');
     }
   }, [navigate, token]);
-
-  // Fetch products from the backend
-  const fetchProducts = async () => {
-    try {
-      const response = await axios.get(`${baseUrl}/products`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setProducts(response.data.products);
-    } catch (error) {
-      console.error('Error fetching products:', error);
-    }
-  };
-
-  useEffect(() => {
-    fetchProducts();
-  }, []);
 
   // Open the dialog for adding a new product
   const handleDialogOpen = () => {
@@ -118,7 +104,7 @@ const AdminDashboard = () => {
     formDataToSend.append('price', formData.price);
     formDataToSend.append('description', formData.description);
     formDataToSend.append('brand', formData.brand);
-   formDataToSend.append('category', formData.category);
+    formDataToSend.append('category', formData.category);
     if (editingProduct) {
       formDataToSend.append('id', formData.id);
     }
@@ -212,8 +198,8 @@ const AdminDashboard = () => {
     });
   };
 
-  const handleFilter = (filteredProducts) => {
-    setProducts(filteredProducts);
+  const handleFilter = (filters) => {
+    setFilters(filters);
   };
 
   // Logout admin
@@ -221,6 +207,51 @@ const AdminDashboard = () => {
     localStorage.removeItem('token');
     navigate('/login');
   };
+
+  const renderTable = (products, lastProductRef) => (
+    <Table>
+      <TableHead>
+        <TableRow>
+          <TableCell>Name</TableCell>
+          <TableCell>Price</TableCell>
+          <TableCell>Category</TableCell>
+          <TableCell>Brand</TableCell>
+        </TableRow>
+      </TableHead>
+      <TableBody>
+        {products.map((product, index) => {
+          // Attach the ref to the last item in the list
+          const refProp = index === products.length - 1 ? { ref: lastProductRef } : {};
+          return (
+            <TableRow key={product._id} {...refProp}>
+              <TableCell>{product.name}</TableCell>
+              <TableCell>${parseFloat(product.price).toFixed(2)}</TableCell>
+              <TableCell>
+                <img src={product.images[0]} alt={product.name} width={50} height={50} />
+              </TableCell>
+              <TableCell>{product.description}</TableCell>
+              <TableCell>
+                <Button
+                  variant="outlined"
+                  onClick={() => handleEditProduct(product)}
+                  sx={{ marginRight: 1 }}
+                >
+                  Edit
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  onClick={() => handleDeleteProduct(product._id)}
+                >
+                  Delete
+                </Button>
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
+  );
 
   return (
     <Container sx={{ marginTop: 4 }}>
@@ -240,45 +271,13 @@ const AdminDashboard = () => {
 
       <ProductFilter baseUrl={baseUrl} token={token} onFilter={handleFilter} />
       <Paper>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>Price</TableCell>
-              <TableCell>Image</TableCell>
-              <TableCell>Description</TableCell>
-              <TableCell>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {products.map((product) => (
-              <TableRow key={product._id}>
-                <TableCell>{product.name}</TableCell>
-                <TableCell>${parseFloat(product.price).toFixed(2)}</TableCell>
-                <TableCell>
-                  <img src={product.images[0]} alt={product.name} width={50} height={50} />
-                </TableCell>
-                <TableCell>{product.description}</TableCell>
-                <TableCell>
-                  <Button
-                    variant="outlined"
-                    onClick={() => handleEditProduct(product)}
-                    sx={{ marginRight: 1 }}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    color="error"
-                    onClick={() => handleDeleteProduct(product._id)}
-                  >
-                    Delete
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <InfiniteProductList
+          baseUrl={baseUrl}
+          token={token}
+          limit={10}
+          filters={filters ? filters: {}} // pass any filters if needed
+          renderProducts={renderTable}
+        />
       </Paper>
 
       {/* Dialog for Adding/Editing a Product */}

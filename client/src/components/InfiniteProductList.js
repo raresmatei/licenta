@@ -13,13 +13,21 @@ const InfiniteProductList = ({ baseUrl, token, filters = {}, renderProducts }) =
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
-      const params = { page, limit, ...filters };
+      // Start with pagination parameters
+      const params = { page, limit };
+      // Loop over filters and add only non-empty values
+      Object.keys(filters).forEach(key => {
+        if (filters[key] !== "" && filters[key] !== null && filters[key] !== undefined) {
+          params[key] = filters[key];
+        }
+      });
+  
       const response = await axios.get(`${baseUrl}/products`, {
         headers: { Authorization: `Bearer ${token}` },
         params,
       });
       const newProducts = response.data.products;
-      setProducts(prev => [...prev, ...newProducts]);
+      setProducts(prev => (page === 1 ? newProducts : [...prev, ...newProducts]));
       if (newProducts.length < limit) {
         setHasMore(false);
       }
@@ -29,6 +37,7 @@ const InfiniteProductList = ({ baseUrl, token, filters = {}, renderProducts }) =
       setLoading(false);
     }
   }, [baseUrl, token, page, filters]);
+  
 
   useEffect(() => {
     fetchProducts();

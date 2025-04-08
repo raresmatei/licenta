@@ -26,20 +26,22 @@ const handler = async (event, context) => {
     };
   }
 
-  const token = authHeader.split(' ')[1];
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    if (!decoded.admin && event.httpMethod !== 'GET') {
+  if (['PUT', 'POST', 'DELETE'].includes(event.httpMethod)) {
+    const token = authHeader.split(' ')[1];
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      if (!decoded.admin && event.httpMethod !== 'GET') {
+        return {
+          statusCode: 403,
+          body: JSON.stringify({ error: 'Forbidden: Admins only' }),
+        };
+      }
+    } catch (err) {
       return {
-        statusCode: 403,
-        body: JSON.stringify({ error: 'Forbidden: Admins only' }),
+        statusCode: 401,
+        body: JSON.stringify({ error: 'Invalid token' }),
       };
     }
-  } catch (err) {
-    return {
-      statusCode: 401,
-      body: JSON.stringify({ error: 'Invalid token' }),
-    };
   }
 
   // Ensure database connection is established
@@ -59,20 +61,20 @@ const handler = async (event, context) => {
       case 'GET': {
         // Get all query parameters as filters
         const filters = event.queryStringParameters || {};
-      
+
         // Extract pagination parameters
         const page = parseInt(filters.page, 10) || 1;
         const limit = parseInt(filters.limit, 10) || 30;
         const skip = (page - 1) * limit;
         delete filters.page;
         delete filters.limit;
-      
+
         // If an "id" filter is provided, map it to _id
         if (filters.id) {
           filters._id = filters.id;
           delete filters.id;
         }
-      
+
         // Build price filter if minPrice and/or maxPrice are provided
         if (filters.minPrice || filters.maxPrice) {
           const priceFilter = {};
@@ -86,17 +88,17 @@ const handler = async (event, context) => {
           delete filters.minPrice;
           delete filters.maxPrice;
         }
-      
+
         // Query with pagination
         const products = await Product.find(filters).skip(skip).limit(limit);
         const totalCount = await Product.countDocuments(filters);
-      
+
         return {
           statusCode: 200,
           body: JSON.stringify({ products, totalCount, page, limit }),
         };
-      }    
-      
+      }
+
       case 'POST': {
         // Parse the multipart form data using lambda-multipart-parser
         const result = await multipart.parse(event);
@@ -143,7 +145,7 @@ const handler = async (event, context) => {
       case 'PUT': {
         // Parse the multipart form data using lambda-multipart-parser
         const result = await multipart.parse(event);
-        
+
         // Extract text fields; expected fields: id, name, price, description, existingImages
         const { id, name, price, description, existingImages, category } = result;
         if (!id) {
@@ -152,7 +154,7 @@ const handler = async (event, context) => {
             body: JSON.stringify({ error: 'Product ID is required' }),
           };
         }
-        
+
         // Determine the array of existing image URLs
         let existingImagesArray = [];
         if (existingImages) {
@@ -163,7 +165,7 @@ const handler = async (event, context) => {
             existingImagesArray = [];
           }
         }
-        
+
         // Process new image files (if any)
         const newImageUrls = [];
         if (result.files && result.files.length > 0) {
@@ -181,10 +183,10 @@ const handler = async (event, context) => {
             newImageUrls.push(uploadResult.secure_url);
           }
         }
-        
+
         // Merge existing images with new uploads
         const mergedImages = [...existingImagesArray, ...newImageUrls];
-        
+
         // Build the update data object with text fields and merged images array
         const updateData = {
           name,
@@ -193,7 +195,7 @@ const handler = async (event, context) => {
           category,
           images: mergedImages
         };
-        
+
         const updatedProduct = await Product.findByIdAndUpdate(id, updateData, { new: true });
         if (!updatedProduct) {
           return {
@@ -201,12 +203,12 @@ const handler = async (event, context) => {
             body: JSON.stringify({ error: 'Product not found' }),
           };
         }
-        
+
         return {
           statusCode: 200,
           body: JSON.stringify({ product: updatedProduct }),
         };
-      }      
+      }
 
       case 'DELETE': {
         // Delete a product; expect product id as query parameter: /?id=...

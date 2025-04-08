@@ -9,6 +9,7 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 const cartHandler = async (event, context) => {
     // Verify that an Authorization header is provided
+    console.log('headers: ', event.headers)
     const authHeader = event.headers.authorization || event.headers.Authorization;
     if (!authHeader) {
         return {
@@ -44,36 +45,33 @@ const cartHandler = async (event, context) => {
     // Switch based on HTTP method
     switch (event.httpMethod) {
         case 'GET': {
-            // Retrieve the user's cart, populating product details
             let cart = await Cart.findOne({ userId }).populate('items');
             if (!cart) {
-                // If no cart exists, return an empty cart object
                 return {
                     statusCode: 200,
-                    body: JSON.stringify({ cart: { items: [] } })
+                    body: JSON.stringify({ cart: { items: [], itemCount: 0 } }),
                 };
             }
             return {
                 statusCode: 200,
-                body: JSON.stringify({ cart })
+                body: JSON.stringify({ cart }),
             };
         }
 
         case 'POST': {
-            // Add an item to the cart.
             let data;
             try {
                 data = JSON.parse(event.body);
             } catch (err) {
                 return {
                     statusCode: 400,
-                    body: JSON.stringify({ error: 'Invalid JSON' })
+                    body: JSON.stringify({ error: 'Invalid JSON' }),
                 };
             }
             if (!data.productId || !data.quantity) {
                 return {
                     statusCode: 400,
-                    body: JSON.stringify({ error: 'Missing productId or quantity' })
+                    body: JSON.stringify({ error: 'Missing productId or quantity' }),
                 };
             }
 
@@ -94,28 +92,30 @@ const cartHandler = async (event, context) => {
                 cart.items.push({ product: data.productId, quantity: data.quantity });
             }
 
+            // Update the total item count
+            cart.itemCount = cart.items.reduce((sum, item) => sum + item.quantity, 0);
             await cart.save();
+
             return {
                 statusCode: 200,
-                body: JSON.stringify({ cart })
+                body: JSON.stringify({ cart }),
             };
         }
 
         case 'PATCH': {
-            // Update the quantity of an item in the cart (or remove it if quantity is 0)
             let data;
             try {
                 data = JSON.parse(event.body);
             } catch (err) {
                 return {
                     statusCode: 400,
-                    body: JSON.stringify({ error: 'Invalid JSON' })
+                    body: JSON.stringify({ error: 'Invalid JSON' }),
                 };
             }
             if (!data.productId || typeof data.quantity !== 'number') {
                 return {
                     statusCode: 400,
-                    body: JSON.stringify({ error: 'Missing productId or quantity' })
+                    body: JSON.stringify({ error: 'Missing productId or quantity' }),
                 };
             }
 
@@ -123,7 +123,7 @@ const cartHandler = async (event, context) => {
             if (!cart) {
                 return {
                     statusCode: 404,
-                    body: JSON.stringify({ error: 'Cart not found' })
+                    body: JSON.stringify({ error: 'Cart not found' }),
                 };
             }
 
@@ -133,7 +133,7 @@ const cartHandler = async (event, context) => {
             if (index === -1) {
                 return {
                     statusCode: 404,
-                    body: JSON.stringify({ error: 'Product not found in cart' })
+                    body: JSON.stringify({ error: 'Product not found in cart' }),
                 };
             }
 
@@ -145,12 +145,16 @@ const cartHandler = async (event, context) => {
                 cart.items[index].quantity = data.quantity;
             }
 
+            // Recalculate and update the total item count.
+            cart.itemCount = cart.items.reduce((sum, item) => sum + item.quantity, 0);
             await cart.save();
+
             return {
                 statusCode: 200,
-                body: JSON.stringify({ cart })
+                body: JSON.stringify({ cart }),
             };
         }
+
 
         default:
             return {

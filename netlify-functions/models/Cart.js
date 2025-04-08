@@ -8,7 +8,8 @@ const CartItemSchema = new Schema({
 
 const CartSchema = new Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, required: true, unique: true },
-  items: [CartItemSchema]
+  items: [CartItemSchema],
+  itemCount: { type: Number, default: 0 }  // New field for total product count
 }, { timestamps: true });
 
 module.exports = mongoose.models.Cart || mongoose.model('Cart', CartSchema);
