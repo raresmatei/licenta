@@ -1,6 +1,6 @@
 // src/pages/LandingPage.js
-import React, { useEffect, useState } from 'react';
-import { Container, Typography, Grid, Card, CardMedia, CardContent, Fade } from '@mui/material';
+import React, { useState } from 'react';
+import { Grid, Card, CardMedia, CardContent, Typography, Fade } from '@mui/material';
 import { Link } from 'react-router-dom';
 import InfiniteProductList from '../components/InfiniteProductList';
 import ProductFilter from '../components/ProductFilter';
@@ -9,15 +9,17 @@ const LandingPage = () => {
   const baseUrl = process.env.REACT_APP_API_BASE_URL || '';
   const token = localStorage.getItem('token');
   const [filters, setFilters] = useState({});
+  // Initially, filters are hidden. The toggle within ProductFilter will control it.
+  const [showFilters, setShowFilters] = useState(false);
 
-  // Update filters when ProductFilter changes
+  // When filters change, update this state.
   const handleFilter = (newFilters) => {
     setFilters(newFilters);
   };
 
-  // Render function to display products as cards with a fade transition.
+  // Render products as cards with a fade transition.
   const renderProducts = (products, lastProductRef) => (
-    <Grid container spacing={4} justifyContent="center">
+    <Grid container spacing={4}>
       {products.map((product, index) => {
         const refProp = index === products.length - 1 ? { ref: lastProductRef } : {};
         return (
@@ -33,8 +35,8 @@ const LandingPage = () => {
                   />
                   <CardContent>
                     <Typography variant="h6">{product.name}</Typography>
-                    <Typography variant="subtitle1">{product.category}</Typography>
-                    <Typography variant="subtitle1">{product.brand}</Typography>
+                    <Typography variant="subtitle2">{product.category}</Typography>
+                    <Typography variant="subtitle2">{product.brand}</Typography>
                     <Typography variant="body1" color="text.secondary">
                       ${parseFloat(product.price).toFixed(2)}
                     </Typography>
@@ -49,18 +51,31 @@ const LandingPage = () => {
   );
 
   return (
-    <Container>
-      <Typography variant="h4" component="h2" gutterBottom align="center" sx={{ mt: 10 }}>
-        Featured Products
-      </Typography>
-      <ProductFilter baseUrl={baseUrl} token={token} onFilter={handleFilter} />
-      <InfiniteProductList
-        baseUrl={baseUrl}
-        token={token}
-        filters={filters}
-        renderProducts={renderProducts}
-      />
-    </Container>
+    <Grid container spacing={2} sx={{ mt: 6 }}>
+      {/* LEFT COLUMN: Filter area */}
+      <Grid item xs={12} md={3}>
+        <ProductFilter
+          baseUrl={baseUrl}
+          token={token}
+          onFilter={handleFilter}
+          showFilters={showFilters}
+          setShowFilters={setShowFilters}
+        />
+      </Grid>
+
+      {/* RIGHT COLUMN: Products */}
+      <Grid item xs={12} md={showFilters ? 9 : 12}>
+        <Typography variant="h4" gutterBottom align="center">
+          Featured Products
+        </Typography>
+        <InfiniteProductList
+          baseUrl={baseUrl}
+          token={token}
+          filters={filters}
+          renderProducts={renderProducts}
+        />
+      </Grid>
+    </Grid>
   );
 };
 
