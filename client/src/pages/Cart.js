@@ -8,6 +8,7 @@ import RemoveIcon from '@mui/icons-material/Remove';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CheckoutForm from '../components/CheckoutForm';
 import { CartContext } from '../context/CartContext';
+import {jwtDecode} from 'jwt-decode';
 
 const Cart = () => {
     const [confirmDelete, setConfirmDelete] = useState({ open: false, item: null });
@@ -70,21 +71,53 @@ const Cart = () => {
     // Checkout callback (unchanged)
     const handleCheckout = async (checkoutData) => {
         try {
-            const lineItems = cart.items.map(async (item) => ({
-                price_data: {
-                    currency: 'usd',
-                    product_data: { name: (await fetchProduct(item.product)).name },
-                    unit_amount: Math.round((await fetchProduct(item.product)).price * 100)
+            // Decode the token to get user email
+            const decodedToken = jwtDecode(token);
+            const userEmail = decodedToken.email;
+
+            // Build line items and compute the total amount
+            const lineItemsAndTotals = await Promise.all(
+                cart.items.map(async (item) => {
+                    const product = await fetchProduct(item.product);
+                    return {
+                        lineItem: {
+                            price_data: {
+                                currency: 'usd',
+                                product_data: { name: product.name },
+                                unit_amount: Math.round(product.price * 100),
+                            },
+                            quantity: item.quantity,
+                        },
+                        productPrice: product.price,
+                        quantity: item.quantity,
+                    };
+                })
+            );
+            const lineItems = lineItemsAndTotals.map(x => x.lineItem);
+            const totalAmount = lineItemsAndTotals.reduce((acc, cur) => acc + cur.productPrice * cur.quantity, 0);
+
+            // Build the orderData object (shippingAddress & paymentInfo are provided by CheckoutForm)
+            const orderData = {
+                // You could also include a more detailed array of product IDs and quantities if needed.
+                products: cart.items,
+                totalAmount,
+                shippingAddress: checkoutData.shippingAddress,
+                paymentInfo:{
+                    paymentMethod: 'card',
                 },
-                quantity: item.quantity,
-            }));
+                userEmail,
+            };
+
+            // Call your createCheckoutSession endpoint with lineItems and orderData
             const response = await axios.post(`${baseUrl}/createCheckoutSession`, {
                 lineItems,
-                successUrl: 'http://localhost:3000/',
-                cancelUrl: 'http://localhost:3000/cart'
+                successUrl: 'http://localhost:3000/checkout-successful',
+                cancelUrl: 'http://localhost:3000/cart',
+                orderData,
             }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
+
             window.location.href = response.data.url;
         } catch (error) {
             console.error('Error creating checkout session:', error);
@@ -92,8 +125,10 @@ const Cart = () => {
         }
     };
 
+
     useEffect(() => {
         fetchCartProducts();
+        console.log('cart: ', cart);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [cart]);
 

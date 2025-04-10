@@ -9,6 +9,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import ProductDetail from './pages/ProductDetail';
 import './axios/axiosConfig';
 import Cart from './pages/Cart';
+import CheckoutSuccess from './pages/CheckoutSucces';
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/product/:id" element={<ProductDetail />} />
         <Route path="/cart" element={<Cart />} />
+        <Route path="checkout-successful" element={<CheckoutSuccess/>}/>
       </Routes>
     </Router>
   );

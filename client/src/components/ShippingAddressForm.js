@@ -1,86 +1,75 @@
 // src/components/ShippingAddressForm.js
 import React, { useState, useEffect } from 'react';
 import { Box, TextField, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
-import axios from 'axios';
+import { Country, State, City } from 'country-state-city';
 
 const ShippingAddressForm = ({ shippingAddress, setShippingAddress }) => {
-  const [countries, setCountries] = useState([]);
-  const [states, setStates] = useState([]);
-  const [cities, setCities] = useState([]);
+  const [countries, setCountries] = useState([]); // array of country objects
+  const [states, setStates] = useState([]);         // array of state objects
+  const [cities, setCities] = useState([]);         // array of city objects
 
-  // Fetch countries on mount
+  // Load all countries on mount
   useEffect(() => {
-    const fetchCountries = async () => {
-      try {
-        const response = await axios.get('https://restcountries.com/v3.1/all');
-        const countryNames = response.data.map(country => country.name.common).sort();
-        setCountries(countryNames);
-      } catch (error) {
-        console.error('Error fetching countries:', error);
-      }
-    };
-    fetchCountries();
+    const allCountries = Country.getAllCountries();
+    // Optionally sort alphabetically by name:
+    const sortedCountries = allCountries.sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
+    setCountries(sortedCountries);
   }, []);
 
-  // If shippingAddress.country is already set, fetch states
+  // When shippingAddress.country changes, load the states for that country.
   useEffect(() => {
-    const fetchStates = async () => {
-      if (!shippingAddress.country) return; // no country selected, skip
-      try {
-        const response = await axios.post('https://countriesnow.space/api/v0.1/countries/states', {
-          country: shippingAddress.country
-        });
-        const statesList = response.data.data.states.map(s => s.name).sort();
-        setStates(statesList);
-      } catch (error) {
-        console.error('Error fetching states:', error);
-      }
-    };
-    fetchStates();
+    if (!shippingAddress.country) {
+      setStates([]);
+      return;
+    }
+    const stateList = State.getStatesOfCountry(shippingAddress.country); // returns array of state objects
+    // Optionally sort the states by name:
+    setStates(stateList.sort((a, b) => a.name.localeCompare(b.name)));
   }, [shippingAddress.country]);
 
-  // If shippingAddress.state is already set, fetch cities
+  // When shippingAddress.state changes, load the cities for that state.
   useEffect(() => {
-    const fetchCities = async () => {
-      if (!shippingAddress.country || !shippingAddress.state) return; // no state selected, skip
-      try {
-        const response = await axios.post('https://countriesnow.space/api/v0.1/countries/state/cities', {
-          country: shippingAddress.country,
-          state: shippingAddress.state
-        });
-        const citiesList = response.data.data.sort();
-        setCities(citiesList);
-      } catch (error) {
-        console.error('Error fetching cities:', error);
-      }
-    };
-    fetchCities();
+    if (!shippingAddress.country || !shippingAddress.state) {
+      setCities([]);
+      return;
+    }
+    const citiesList = City.getCitiesOfState(shippingAddress.country, shippingAddress.state); // array of city objects
+    // Optionally sort the cities by name:
+    setCities(citiesList.sort((a, b) => a.name.localeCompare(b.name)));
   }, [shippingAddress.country, shippingAddress.state]);
 
-  // Handler for text fields (fullName, addressLine1, etc.)
+  // Handler for simple text fields
   const handleShippingChange = (e) => {
     setShippingAddress({ ...shippingAddress, [e.target.name]: e.target.value });
   };
 
-  // Handler for selecting country
-  const handleCountryChange = async (e) => {
-    const selectedCountry = e.target.value;
-    setShippingAddress({ ...shippingAddress, country: selectedCountry, state: '', city: '' });
-    setStates([]);
-    setCities([]);
+  // When selecting a country, set it (using its ISO code) and reset state/city
+  const handleCountryChange = (e) => {
+    setShippingAddress({
+      ...shippingAddress,
+      country: e.target.value,  // e.g., "US" or "RO"
+      state: '',
+      city: ''
+    });
   };
 
-  // Handler for selecting state
-  const handleStateChange = async (e) => {
-    const selectedState = e.target.value;
-    setShippingAddress({ ...shippingAddress, state: selectedState, city: '' });
-    setCities([]);
+  // When selecting a state, set it (using its ISO code) and reset city
+  const handleStateChange = (e) => {
+    setShippingAddress({
+      ...shippingAddress,
+      state: e.target.value, // e.g., "CA"
+      city: ''
+    });
   };
 
-  // Handler for selecting city
+  // When selecting a city, save its name (or id if available)
   const handleCityChange = (e) => {
-    const selectedCity = e.target.value;
-    setShippingAddress({ ...shippingAddress, city: selectedCity });
+    setShippingAddress({
+      ...shippingAddress,
+      city: e.target.value
+    });
   };
 
   return (
@@ -91,6 +80,7 @@ const ShippingAddressForm = ({ shippingAddress, setShippingAddress }) => {
         value={shippingAddress.fullName || ''}
         onChange={handleShippingChange}
         fullWidth
+        required
       />
       <TextField
         label="Street"
@@ -98,15 +88,9 @@ const ShippingAddressForm = ({ shippingAddress, setShippingAddress }) => {
         value={shippingAddress.addressLine1 || ''}
         onChange={handleShippingChange}
         fullWidth
+        required
       />
-      <TextField
-        label="Numar"
-        name="addressLine2"
-        value={shippingAddress.addressLine2 || ''}
-        onChange={handleShippingChange}
-        fullWidth
-      />
-      <FormControl fullWidth>
+      <FormControl fullWidth required>
         <InputLabel>Country</InputLabel>
         <Select
           value={shippingAddress.country || ''}
@@ -114,13 +98,17 @@ const ShippingAddressForm = ({ shippingAddress, setShippingAddress }) => {
           onChange={handleCountryChange}
         >
           {countries.map((country) => (
-            <MenuItem key={country} value={country}>
-              {country}
+            <MenuItem key={country.isoCode} value={country.isoCode}>
+              {country.name}
             </MenuItem>
           ))}
         </Select>
       </FormControl>
-      <FormControl fullWidth disabled={!shippingAddress.country || states.length === 0}>
+      <FormControl
+        fullWidth
+        required
+        disabled={!shippingAddress.country || states.length === 0}
+      >
         <InputLabel>State</InputLabel>
         <Select
           value={shippingAddress.state || ''}
@@ -128,22 +116,26 @@ const ShippingAddressForm = ({ shippingAddress, setShippingAddress }) => {
           onChange={handleStateChange}
         >
           {states.map((state) => (
-            <MenuItem key={state} value={state}>
-              {state}
+            <MenuItem key={state.isoCode} value={state.isoCode}>
+              {state.name}
             </MenuItem>
           ))}
         </Select>
       </FormControl>
-      <FormControl fullWidth disabled={!shippingAddress.state || cities.length === 0}>
+      <FormControl
+        fullWidth
+        required
+        disabled={!shippingAddress.state || cities.length === 0}
+      >
         <InputLabel>City</InputLabel>
         <Select
           value={shippingAddress.city || ''}
           label="City"
           onChange={handleCityChange}
         >
-          {cities.map((city) => (
-            <MenuItem key={city} value={city}>
-              {city}
+          {cities.map((city, index) => (
+            <MenuItem key={index} value={city.name}>
+              {city.name}
             </MenuItem>
           ))}
         </Select>
@@ -154,6 +146,7 @@ const ShippingAddressForm = ({ shippingAddress, setShippingAddress }) => {
         value={shippingAddress.zip || ''}
         onChange={handleShippingChange}
         fullWidth
+        required
       />
     </Box>
   );

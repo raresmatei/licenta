@@ -14,7 +14,6 @@ const CheckoutForm = ({ open, onClose, onCheckout }) => {
         const {
             fullName,
             addressLine1,
-            addressLine2,
             country,
             state,
             city,
@@ -24,7 +23,6 @@ const CheckoutForm = ({ open, onClose, onCheckout }) => {
         return (
             fullName &&
             addressLine1 &&
-            addressLine2 &&
             country &&
             state &&
             city &&
@@ -67,12 +65,12 @@ const CheckoutForm = ({ open, onClose, onCheckout }) => {
                         />
                     </DialogContent>
                     <DialogActions>
-                        <Button onClick={onClose}>Cancel</Button>
-                        <Button variant="contained" onClick={handleNext}>Next</Button>
+                        <Button onClick={handleBack}>Back</Button>
+                        <Button variant="contained" onClick={handlePayNow}>Pay Now</Button>
                     </DialogActions>
                 </>
             )}
-            {checkoutStep === 1 && (
+            {/* {checkoutStep === 1 && (
                 <>
                     <DialogTitle>Select Payment Method</DialogTitle>
                     <DialogContent>
@@ -88,7 +86,7 @@ const CheckoutForm = ({ open, onClose, onCheckout }) => {
                         <Button variant="contained" onClick={handlePayNow}>Pay Now</Button>
                     </DialogActions>
                 </>
-            )}
+            )} */}
         </Dialog>
     );
 };

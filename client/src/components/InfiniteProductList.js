@@ -43,6 +43,12 @@ const InfiniteProductList = ({ baseUrl, token, filters = {}, renderProducts }) =
     fetchProducts();
   }, [fetchProducts]);
 
+  useEffect(() => {
+    setPage(1);
+    setProducts([]); // Clear out the current product list
+    setHasMore(true);
+  }, [filters]);  
+
   // Intersection Observer to detect when the last product is visible
   const observer = useRef();
   const lastProductRef = useCallback(node => {
