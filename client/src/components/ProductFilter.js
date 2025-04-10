@@ -2,7 +2,6 @@
 import React, { useState, useEffect, forwardRef } from 'react';
 import {
   Box,
-  Button,
   FormGroup,
   FormControlLabel,
   Checkbox,
@@ -12,51 +11,58 @@ import {
   TextField,
   InputAdornment,
   Collapse,
-  Slide
+  Slide,
 } from '@mui/material';
 import {
   ArrowLeft,
   ArrowRight,
   ExpandLess,
   ExpandMore,
-  Search
+  Search,
 } from '@mui/icons-material';
 import axios from 'axios';
 
 /**
  * ProductFilter
  *
- * A sliding filter panel with a single toggle line that either displays
- * "ASCUNDE FILTRE" (Hide Filters) or "ARATA FILTRE" (Show Filters). The main
- * filter panel uses a Slide transition (from left to right) that is now slower
- * and smoother (duration: 1000 ms).
+ * This component displays a sliding filter panel with an always-visible
+ * toggle line showing "ASCUNDE FILTRE" (Hide Filters) when open and "ARATA FILTRE"
+ * (Show Filters) when closed.
  *
- * The toggle line is always visible so you can open/close the panel.
+ * It initializes its filter values (category, brand, price) from the `initialFilters`
+ * prop (which comes from the URL query parameters) and automatically triggers the
+ * filter update whenever the user interacts with the filter options.
  */
 const ProductFilter = forwardRef(function ProductFilter(props, ref) {
-  const { baseUrl, token, onFilter, showFilters, setShowFilters } = props;
+  const { baseUrl, token, onFilter, showFilters, setShowFilters, initialFilters = {} } = props;
 
-  // Toggles for internal collapsible sections
+  // Initialize filter values from initialFilters (URL query parameters).
+  const [selectedCategory, setSelectedCategory] = useState(initialFilters.category || '');
+  const [selectedBrands, setSelectedBrands] = useState(
+    initialFilters.brand ? initialFilters.brand.split(',') : []
+  );
+  const [priceRange, setPriceRange] = useState(
+    initialFilters.minPrice && initialFilters.maxPrice
+      ? [Number(initialFilters.minPrice), Number(initialFilters.maxPrice)]
+      : [0, 700]
+  );
+
+  // Toggles for internal collapsible sections.
   const [showCategory, setShowCategory] = useState(true);
   const [showPrice, setShowPrice] = useState(true);
   const [showBrand, setShowBrand] = useState(true);
 
-  // Data from backend
+  // Data fetched from the backend.
   const [categories, setCategories] = useState([]);
   const [brands, setBrands] = useState([]);
-
-  // Selected filter values
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedBrands, setSelectedBrands] = useState([]);
-  const [priceRange, setPriceRange] = useState([0, 700]);
   const [searchBrand, setSearchBrand] = useState('');
 
-  // Fetch categories on mount
+  // Fetch the list of categories on mount.
   useEffect(() => {
     const fetchCategories = async () => {
       try {
         const res = await axios.get(`${baseUrl}/productFields?field=category`, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         });
         setCategories(res.data.values || []);
       } catch (error) {
@@ -66,7 +72,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
     fetchCategories();
   }, [baseUrl, token]);
 
-  // Fetch brands when a category is selected
+  // When a category is selected, fetch the corresponding brands.
   useEffect(() => {
     const fetchBrands = async () => {
       if (!selectedCategory) {
@@ -86,7 +92,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
     fetchBrands();
   }, [baseUrl, token, selectedCategory]);
 
-  // Pass filter selections back to the parent
+  // triggerFilter sends the current filter selections back to the parent.
   const triggerFilter = (cat, brandArray, priceArr) => {
     const filters = {};
     if (cat) filters.category = cat;
@@ -96,25 +102,25 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
     onFilter?.(filters);
   };
 
-  // Handlers
+  // When a category is clicked, update state and trigger filter update.
   const handleCategoryClick = (cat) => {
     setSelectedCategory(cat);
     setSelectedBrands([]);
     triggerFilter(cat, [], priceRange);
   };
 
+  // Handle brand checkbox changes and trigger the filter update immediately.
   const handleBrandChange = (evt) => {
     const brand = evt.target.name;
     const checked = evt.target.checked;
-    let updated = [];
-    if (checked) {
-      updated = [...selectedBrands, brand];
-    } else {
-      updated = selectedBrands.filter((b) => b !== brand);
-    }
-    setSelectedBrands(updated);
+    const updatedBrands = checked
+      ? [...selectedBrands, brand]
+      : selectedBrands.filter((b) => b !== brand);
+    setSelectedBrands(updatedBrands);
+    triggerFilter(selectedCategory, updatedBrands, priceRange);
   };
 
+  // Handle changes on the price slider.
   const handleSliderChange = (evt, newValue) => {
     setPriceRange(newValue);
   };
@@ -122,18 +128,14 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
     triggerFilter(selectedCategory, selectedBrands, newValue);
   };
 
-  const handleApply = () => {
-    triggerFilter(selectedCategory, selectedBrands, priceRange);
-  };
-
-  // Filter brands by search term
+  // Filter the brands list based on the search input.
   const filteredBrands = brands.filter((brandObj) =>
     brandObj._id.toLowerCase().includes(searchBrand.toLowerCase())
   );
 
   return (
     <Box>
-      {/* Always-visible toggle line */}
+      {/* Always-visible toggle line for opening/closing the filter panel */}
       <Box
         sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', mb: 1 }}
         onClick={() => setShowFilters(!showFilters)}
@@ -144,8 +146,8 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
         {showFilters ? <ArrowLeft /> : <ArrowRight />}
       </Box>
 
-      {/* Slide transition for the filter panel, with a slower timeout */}
-      <Slide in={showFilters} direction="right" mountOnEnter unmountOnExit timeout={500}>
+      {/* The filter panel slides in/out with a smooth 1-second transition */}
+      <Slide in={showFilters} direction="right" mountOnEnter unmountOnExit timeout={1000}>
         <Paper ref={ref} sx={{ p: 1 }}>
           {/* CATEGORY SECTION */}
           <Box sx={{ mb: 1 }}>
@@ -155,7 +157,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 cursor: 'pointer',
-                mb: 1
+                mb: 1,
               }}
               onClick={() => setShowCategory((prev) => !prev)}
             >
@@ -173,8 +175,8 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
                   '&::-webkit-scrollbar': { width: '6px' },
                   '&::-webkit-scrollbar-thumb': {
                     borderRadius: '3px',
-                    backgroundColor: 'rgba(0,0,0,0.3)'
-                  }
+                    backgroundColor: 'rgba(0,0,0,0.3)',
+                  },
                 }}
               >
                 {categories.map((catObj, idx) => (
@@ -188,7 +190,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
                       mb: 0.5,
                       p: 0.5,
                       border: selectedCategory === catObj._id ? '1px solid #1976d2' : 'none',
-                      borderRadius: '4px'
+                      borderRadius: '4px',
                     }}
                     onClick={() => handleCategoryClick(catObj._id)}
                   >
@@ -202,7 +204,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
             </Collapse>
           </Box>
 
-          {/* PRICE SECTION (displayed only when a category is selected) */}
+          {/* PRICE SECTION (displayed only if a category is selected) */}
           {selectedCategory && (
             <Box sx={{ mb: 1 }}>
               <Box
@@ -234,7 +236,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
             </Box>
           )}
 
-          {/* BRAND SECTION (displayed only when a category is selected) */}
+          {/* BRAND SECTION (displayed only if a category is selected) */}
           {selectedCategory && (
             <Box sx={{ mb: 1 }}>
               <Box
@@ -247,6 +249,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
                 {showBrand ? <ExpandLess /> : <ExpandMore />}
               </Box>
               <Collapse in={showBrand}>
+                {/* Brand search field */}
                 <Box sx={{ mt: 1 }}>
                   <TextField
                     fullWidth
@@ -258,7 +261,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
                         <InputAdornment position="end">
                           <Search />
                         </InputAdornment>
-                      )
+                      ),
                     }}
                   />
                 </Box>
@@ -270,8 +273,8 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
                     '&::-webkit-scrollbar': { width: '6px' },
                     '&::-webkit-scrollbar-thumb': {
                       borderRadius: '3px',
-                      backgroundColor: 'rgba(0,0,0,0.3)'
-                    }
+                      backgroundColor: 'rgba(0,0,0,0.3)',
+                    },
                   }}
                 >
                   <FormGroup>
@@ -300,11 +303,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
               </Collapse>
             </Box>
           )}
-
-          {/* APPLY BUTTON */}
-          <Button variant="contained" onClick={handleApply} sx={{ mt: 1, width: '100%' }}>
-            Apply
-          </Button>
+          {/* No Apply button – filter updates occur automatically */}
         </Paper>
       </Slide>
     </Box>

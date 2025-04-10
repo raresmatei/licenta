@@ -1,23 +1,51 @@
 // src/pages/LandingPage.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Grid, Card, CardMedia, CardContent, Typography, Fade } from '@mui/material';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import InfiniteProductList from '../components/InfiniteProductList';
 import ProductFilter from '../components/ProductFilter';
 
 const LandingPage = () => {
   const baseUrl = process.env.REACT_APP_API_BASE_URL || '';
   const token = localStorage.getItem('token');
-  const [filters, setFilters] = useState({});
-  // Initially, filters are hidden. The toggle within ProductFilter will control it.
+
+  // useSearchParams lets us read and update query parameters.
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Initial filters are read from the URL query parameters.
+  const [filters, setFilters] = useState({
+    category: searchParams.get('category') || '',
+    brand: searchParams.get('brand') || '',
+    minPrice: searchParams.get('minPrice') || '0',
+    maxPrice: searchParams.get('maxPrice') || '700',
+  });
+
+  // The state of the filter panel visibility is kept locally.
   const [showFilters, setShowFilters] = useState(false);
 
-  // When filters change, update this state.
+  // Whenever searchParams change, update filters state.
+  useEffect(() => {
+    setFilters({
+      category: searchParams.get('category') || '',
+      brand: searchParams.get('brand') || '',
+      minPrice: searchParams.get('minPrice') || '0',
+      maxPrice: searchParams.get('maxPrice') || '700',
+    });
+  }, [searchParams]);
+
+  // When the filter selections change, update both the filters state
+  // and the URL query parameters.
   const handleFilter = (newFilters) => {
     setFilters(newFilters);
+    const params = {};
+    if (newFilters.category) params.category = newFilters.category;
+    if (newFilters.brand) params.brand = newFilters.brand;
+    if (newFilters.minPrice) params.minPrice = newFilters.minPrice;
+    if (newFilters.maxPrice) params.maxPrice = newFilters.maxPrice;
+    setSearchParams(params);
   };
 
-  // Render products as cards with a fade transition.
+  // Render products with a fade transition.
   const renderProducts = (products, lastProductRef) => (
     <Grid container spacing={4}>
       {products.map((product, index) => {
@@ -60,6 +88,7 @@ const LandingPage = () => {
           onFilter={handleFilter}
           showFilters={showFilters}
           setShowFilters={setShowFilters}
+          initialFilters={filters} // Pass the current URL filters as initial values
         />
       </Grid>
 
