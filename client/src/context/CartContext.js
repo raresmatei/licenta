@@ -5,39 +5,54 @@ import axios from 'axios';
 export const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
-    const token = localStorage.getItem('token');
-    const baseUrl = process.env.REACT_APP_API_BASE_URL || '';
-    const [cart, setCart] = useState(null);
-    const [cartCount, setCartCount] = useState(0);
+  // Create a token state variable that you can update
+  const [token, setToken] = useState(localStorage.getItem('token'));
+  const baseUrl = process.env.REACT_APP_API_BASE_URL || '';
+  const [cart, setCart] = useState(null);
+  const [cartCount, setCartCount] = useState(0);
 
-    const fetchCart = async () => {
-        try {
-            if (token) {
-                const response = await axios.get(`${baseUrl}/cart`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                    withCredentials: true,
-                });
-                const updatedCart = response.data.cart;
-                setCart(updatedCart);
-                setCartCount(updatedCart && updatedCart.itemCount ? updatedCart.itemCount : 0);
-            }
-        } catch (error) {
-            console.error("Error fetching cart in context:", error);
-            alert('error cart');
-        }
+  // Function to fetch the cart based on the current token.
+  const fetchCart = async () => {
+    try {
+      if (token) {
+        const response = await axios.get(`${baseUrl}/cart`, {
+          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true,
+        });
+        const updatedCart = response.data.cart;
+        setCart(updatedCart);
+        setCartCount(updatedCart && updatedCart.itemCount ? updatedCart.itemCount : 0);
+      } else {
+        // Clear cart if no token exists.
+        setCart(null);
+        setCartCount(0);
+      }
+    } catch (error) {
+      console.error("Error fetching cart in context:", error);
+      alert('Error fetching cart.');
+    }
+  };
+
+  // Optional: Listen for changes to the "token" in localStorage
+  // (Note: localStorage events fire in other tabs; if login happens in the same tab, you can call setToken explicitly.)
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'token') {
+        setToken(e.newValue);
+      }
     };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
-    useEffect(() => {
-        // if (token !== null) {
-        fetchCart();
-        // }
-        // Optionally, you could set an interval or subscribe to events to update cartCount continuously.
-    }, []);
+  // Re-fetch cart whenever the token changes.
+  useEffect(() => {
+    fetchCart();
+  }, [token]);
 
-    // This provider makes available the current cart, cartCount, and a function to refresh the cart.
-    return (
-        <CartContext.Provider value={{ cart, cartCount, refreshCart: fetchCart, setCart, setCartCount }}>
-            {children}
-        </CartContext.Provider>
-    );
+  return (
+    <CartContext.Provider value={{ cart, cartCount, refreshCart: fetchCart, setCart, setCartCount, setToken }}>
+      {children}
+    </CartContext.Provider>
+  );
 };

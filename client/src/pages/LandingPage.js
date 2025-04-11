@@ -1,6 +1,6 @@
 // src/pages/LandingPage.js
 import React, { useState, useEffect } from 'react';
-import { Grid, Card, CardMedia, CardContent, Typography, Fade } from '@mui/material';
+import { Box, Typography, Fade } from '@mui/material';
 import { Link, useSearchParams } from 'react-router-dom';
 import InfiniteProductList from '../components/InfiniteProductList';
 import ProductFilter from '../components/ProductFilter';
@@ -9,10 +9,10 @@ const LandingPage = () => {
   const baseUrl = process.env.REACT_APP_API_BASE_URL || '';
   const token = localStorage.getItem('token');
 
-  // useSearchParams lets us read and update query parameters.
+  // Use searchParams to support shareable URLs.
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Initial filters are read from the URL query parameters.
+  // Initialize filters from URL query parameters.
   const [filters, setFilters] = useState({
     category: searchParams.get('category') || '',
     brand: searchParams.get('brand') || '',
@@ -20,10 +20,9 @@ const LandingPage = () => {
     maxPrice: searchParams.get('maxPrice') || '700',
   });
 
-  // The state of the filter panel visibility is kept locally.
+  // State controlling whether the filter panel is shown.
   const [showFilters, setShowFilters] = useState(false);
 
-  // Whenever searchParams change, update filters state.
   useEffect(() => {
     setFilters({
       category: searchParams.get('category') || '',
@@ -33,8 +32,7 @@ const LandingPage = () => {
     });
   }, [searchParams]);
 
-  // When the filter selections change, update both the filters state
-  // and the URL query parameters.
+  // When filters change, update state and URL parameters.
   const handleFilter = (newFilters) => {
     setFilters(newFilters);
     const params = {};
@@ -45,56 +43,79 @@ const LandingPage = () => {
     setSearchParams(params);
   };
 
-  // Render products with a fade transition.
+  // Render products using a CSS Grid layout with fixed column width.
   const renderProducts = (products, lastProductRef) => (
-    <Grid container spacing={4}>
+    <Box
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, 250px)', // Fixed 250px columns.
+        gap: 2,
+        justifyContent: 'center',  // Centers the grid when few columns are present.
+        p: 2,
+      }}
+    >
       {products.map((product, index) => {
         const refProp = index === products.length - 1 ? { ref: lastProductRef } : {};
         return (
-          <Grid item key={product._id} xs={12} sm={6} md={4} {...refProp}>
+          <Box key={product._id} {...refProp}>
             <Link to={`/product/${product._id}`} style={{ textDecoration: 'none' }}>
-              <Fade in={true} timeout={500}>
-                <Card>
-                  <CardMedia
-                    component="img"
-                    height="200"
-                    image={product.images && product.images[0] ? product.images[0] : ''}
+              <Fade in timeout={500}>
+                <Box
+                  sx={{
+                    border: '1px solid #ddd',
+                    borderRadius: 1,
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    height: '100%',
+                  }}
+                >
+                  <img
+                    src={product.images && product.images[0] ? product.images[0] : ''}
                     alt={product.name}
+                    style={{ width: '100%', height: '200px', objectFit: 'cover' }}
                   />
-                  <CardContent>
+                  <Box sx={{ p: 2 }}>
                     <Typography variant="h6">{product.name}</Typography>
                     <Typography variant="subtitle2">{product.category}</Typography>
                     <Typography variant="subtitle2">{product.brand}</Typography>
                     <Typography variant="body1" color="text.secondary">
                       ${parseFloat(product.price).toFixed(2)}
                     </Typography>
-                  </CardContent>
-                </Card>
+                  </Box>
+                </Box>
               </Fade>
             </Link>
-          </Grid>
+          </Box>
         );
       })}
-    </Grid>
+    </Box>
   );
 
   return (
-    <Grid container spacing={2} sx={{ mt: 6 }}>
-      {/* LEFT COLUMN: Filter area */}
-      <Grid item xs={12} md={3}>
+    // The outer Box is relatively positioned.
+    <Box sx={{ position: 'relative', mt: 6 }}>
+      {/* 
+        Filter Panel – absolutely positioned on the left with a fixed width,
+        with a little margin for spacing.
+      */}
+      <Box sx={{ position: 'absolute', top: 0, left: 0, width: '300px', zIndex: 1, ml: '16px' }}>
         <ProductFilter
           baseUrl={baseUrl}
           token={token}
           onFilter={handleFilter}
           showFilters={showFilters}
           setShowFilters={setShowFilters}
-          initialFilters={filters} // Pass the current URL filters as initial values
+          initialFilters={filters}
         />
-      </Grid>
+      </Box>
 
-      {/* RIGHT COLUMN: Products */}
-      <Grid item xs={12} md={showFilters ? 9 : 12}>
-        <Typography variant="h4" gutterBottom align="center">
+      {/* 
+        Products area – its left margin transitions over 1s.
+        When filters are visible, margin-left is increased to '320px' (300px panel width + 20px gap).
+      */}
+      <Box sx={{ transition: 'margin-left 1s', marginLeft: showFilters ? '320px' : '0px' }}>
+        <Typography variant="subtitle1" gutterBottom align="center" sx={{ fontWeight: 'bold', mr: 1 }}>
           Featured Products
         </Typography>
         <InfiniteProductList
@@ -103,8 +124,8 @@ const LandingPage = () => {
           filters={filters}
           renderProducts={renderProducts}
         />
-      </Grid>
-    </Grid>
+      </Box>
+    </Box>
   );
 };
 

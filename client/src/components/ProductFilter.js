@@ -25,18 +25,19 @@ import axios from 'axios';
 /**
  * ProductFilter
  *
- * This component displays a sliding filter panel with an always-visible
- * toggle line showing "ASCUNDE FILTRE" (Hide Filters) when open and "ARATA FILTRE"
- * (Show Filters) when closed.
+ * Displays a sliding filter panel with an always-visible toggle line.
+ * - The toggle line reads "ASCUNDE FILTRE" (Hide Filters) when open and
+ *   "ARATA FILTRE" (Show Filters) when closed.
+ * - The main panel slides in/out from left to right over 1 second.
+ * - Filter values (category, brand, price) are initialized from the `initialFilters`
+ *   prop (sourced from the URL) and any changes automatically trigger filtering.
  *
- * It initializes its filter values (category, brand, price) from the `initialFilters`
- * prop (which comes from the URL query parameters) and automatically triggers the
- * filter update whenever the user interacts with the filter options.
+ * Now, the available brand filter values are also re-fetched whenever the price slider moves.
  */
 const ProductFilter = forwardRef(function ProductFilter(props, ref) {
   const { baseUrl, token, onFilter, showFilters, setShowFilters, initialFilters = {} } = props;
 
-  // Initialize filter values from initialFilters (URL query parameters).
+  // Initialize filter values from initialFilters.
   const [selectedCategory, setSelectedCategory] = useState(initialFilters.category || '');
   const [selectedBrands, setSelectedBrands] = useState(
     initialFilters.brand ? initialFilters.brand.split(',') : []
@@ -52,12 +53,13 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
   const [showPrice, setShowPrice] = useState(true);
   const [showBrand, setShowBrand] = useState(true);
 
-  // Data fetched from the backend.
+  // Data from backend.
   const [categories, setCategories] = useState([]);
+  // When fetching brands, we now include the price range.
   const [brands, setBrands] = useState([]);
   const [searchBrand, setSearchBrand] = useState('');
 
-  // Fetch the list of categories on mount.
+  // Fetch categories on mount.
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -72,7 +74,8 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
     fetchCategories();
   }, [baseUrl, token]);
 
-  // When a category is selected, fetch the corresponding brands.
+  // When a category is selected OR the priceRange changes,
+  // fetch the corresponding brands, filtering by both category and price.
   useEffect(() => {
     const fetchBrands = async () => {
       if (!selectedCategory) {
@@ -80,19 +83,21 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
         return;
       }
       try {
-        const res = await axios.get(
-          `${baseUrl}/productFields?field=brand&category=${encodeURIComponent(selectedCategory)}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const url = `${baseUrl}/productFields?field=brand` +
+          `&category=${encodeURIComponent(selectedCategory)}` +
+          `&minPrice=${priceRange[0]}&maxPrice=${priceRange[1]}`;
+        const res = await axios.get(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         setBrands(res.data.values || []);
       } catch (error) {
         console.error('Error fetching brands:', error);
       }
     };
     fetchBrands();
-  }, [baseUrl, token, selectedCategory]);
+  }, [baseUrl, token, selectedCategory, priceRange]);  // note: priceRange is added here
 
-  // triggerFilter sends the current filter selections back to the parent.
+  // Send current filter selections back to the parent.
   const triggerFilter = (cat, brandArray, priceArr) => {
     const filters = {};
     if (cat) filters.category = cat;
@@ -102,14 +107,14 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
     onFilter?.(filters);
   };
 
-  // When a category is clicked, update state and trigger filter update.
+  // Category selection handler.
   const handleCategoryClick = (cat) => {
     setSelectedCategory(cat);
     setSelectedBrands([]);
     triggerFilter(cat, [], priceRange);
   };
 
-  // Handle brand checkbox changes and trigger the filter update immediately.
+  // Brand checkbox handler – filtering updates happen immediately.
   const handleBrandChange = (evt) => {
     const brand = evt.target.name;
     const checked = evt.target.checked;
@@ -120,22 +125,23 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
     triggerFilter(selectedCategory, updatedBrands, priceRange);
   };
 
-  // Handle changes on the price slider.
+  // Price slider handlers.
   const handleSliderChange = (evt, newValue) => {
     setPriceRange(newValue);
   };
   const handleSliderCommit = (evt, newValue) => {
+    // Trigger filter update on slider commit.
     triggerFilter(selectedCategory, selectedBrands, newValue);
   };
 
-  // Filter the brands list based on the search input.
+  // Filter the brands list based on search input.
   const filteredBrands = brands.filter((brandObj) =>
     brandObj._id.toLowerCase().includes(searchBrand.toLowerCase())
   );
 
   return (
-    <Box>
-      {/* Always-visible toggle line for opening/closing the filter panel */}
+    <Box sx={{ width: '300px' }}>
+      {/* Always-visible toggle line */}
       <Box
         sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', mb: 1 }}
         onClick={() => setShowFilters(!showFilters)}
@@ -146,7 +152,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
         {showFilters ? <ArrowLeft /> : <ArrowRight />}
       </Box>
 
-      {/* The filter panel slides in/out with a smooth 1-second transition */}
+      {/* Slide transition for the main filter panel */}
       <Slide in={showFilters} direction="right" mountOnEnter unmountOnExit timeout={1000}>
         <Paper ref={ref} sx={{ p: 1 }}>
           {/* CATEGORY SECTION */}
@@ -204,7 +210,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
             </Collapse>
           </Box>
 
-          {/* PRICE SECTION (displayed only if a category is selected) */}
+          {/* PRICE SECTION (only visible if a category is selected) */}
           {selectedCategory && (
             <Box sx={{ mb: 1 }}>
               <Box
@@ -236,7 +242,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
             </Box>
           )}
 
-          {/* BRAND SECTION (displayed only if a category is selected) */}
+          {/* BRAND SECTION (only visible if a category is selected) */}
           {selectedCategory && (
             <Box sx={{ mb: 1 }}>
               <Box
@@ -303,7 +309,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
               </Collapse>
             </Box>
           )}
-          {/* No Apply button – filter updates occur automatically */}
+          {/* No Apply button – filtering updates occur immediately */}
         </Paper>
       </Slide>
     </Box>

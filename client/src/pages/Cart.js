@@ -1,6 +1,21 @@
-// In your Cart component (src/pages/Cart.js)
+// src/pages/Cart.js
 import React, { useState, useEffect, useContext } from 'react';
-import { Container, Typography, Table, TableHead, TableBody, TableRow, TableCell, IconButton, Button, Box, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import {
+    Container,
+    Typography,
+    Table,
+    TableHead,
+    TableBody,
+    TableRow,
+    TableCell,
+    IconButton,
+    Button,
+    Box,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions
+} from '@mui/material';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
@@ -8,12 +23,12 @@ import RemoveIcon from '@mui/icons-material/Remove';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CheckoutForm from '../components/CheckoutForm';
 import { CartContext } from '../context/CartContext';
-import {jwtDecode} from 'jwt-decode';
+import { jwtDecode } from 'jwt-decode'; // note the correct import: `jwt-decode` is default
 
 const Cart = () => {
     const [confirmDelete, setConfirmDelete] = useState({ open: false, item: null });
     const [cartProducts, setCardProducts] = useState([]);
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token'); // check token to see if logged in
     const baseUrl = process.env.REACT_APP_API_BASE_URL || '';
     const [checkoutOpen, setCheckoutOpen] = useState(false);
     const navigate = useNavigate();
@@ -43,7 +58,7 @@ const Cart = () => {
 
     const updateQuantity = async (productId, newQuantity) => {
         try {
-            const response = await axios.patch(
+            await axios.patch(
                 `${baseUrl}/cart`,
                 { productId, quantity: newQuantity },
                 { headers: { Authorization: `Bearer ${token}` }, withCredentials: true }
@@ -68,7 +83,7 @@ const Cart = () => {
         updateQuantity(item.product._id, 0);
     };
 
-    // Checkout callback (unchanged)
+    // Checkout callback
     const handleCheckout = async (checkoutData) => {
         try {
             // Decode the token to get user email
@@ -96,19 +111,18 @@ const Cart = () => {
             const lineItems = lineItemsAndTotals.map(x => x.lineItem);
             const totalAmount = lineItemsAndTotals.reduce((acc, cur) => acc + cur.productPrice * cur.quantity, 0);
 
-            // Build the orderData object (shippingAddress & paymentInfo are provided by CheckoutForm)
+            // Build the orderData object
             const orderData = {
-                // You could also include a more detailed array of product IDs and quantities if needed.
                 products: cart.items,
                 totalAmount,
                 shippingAddress: checkoutData.shippingAddress,
-                paymentInfo:{
+                paymentInfo: {
                     paymentMethod: 'card',
                 },
                 userEmail,
             };
 
-            // Call your createCheckoutSession endpoint with lineItems and orderData
+            // Call your createCheckoutSession endpoint
             const response = await axios.post(`${baseUrl}/createCheckoutSession`, {
                 lineItems,
                 successUrl: 'http://localhost:3000/checkout-successful',
@@ -125,12 +139,62 @@ const Cart = () => {
         }
     };
 
-
     useEffect(() => {
         fetchCartProducts();
-        console.log('cart: ', cart);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [cart]);
+    }, [cart]); // cart changes whenever refreshCart is called
+
+    // If there's no user token, show the "logged out" view
+    if (!token) {
+        return (
+            <Container sx={
+                {
+                    mt: 4,
+                    marginTop: '100px'
+                }
+            }
+            >
+                <Box
+                    sx={{
+                        display: 'flex',
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        paddingLeft: '96px',
+                        paddingRight: '96px',
+                    }}
+                >
+                    {/* Left Column with Diagonal Text */}
+                    <Box
+                        sx={{
+                            flex: 1,
+                            textAlign: 'left',
+                            transform: 'rotate(-5deg)',
+                            paddingRight: 2
+                        }}
+                    >
+                        <Typography variant="h3" color="error" sx={{ mb: 1 }}>
+                            Ups!
+                        </Typography>
+                        <Typography variant="h5" sx={{ mb: 1 }}>
+                            Cosul tau este gol
+                        </Typography>
+                    </Box>
+                    {/* Right Column */}
+                    <Box sx={{ flex: 1, textAlign: 'right', paddingLeft: 2 }}>
+                        <Typography variant="h6" sx={{ mb: 1 }}>
+                            Pentru a accesa cosul tau,
+                        </Typography>
+                        <Typography variant="body1" sx={{ mb: 1, marginBottom: '24px' }}>
+                            te rugam sa te autentifici.
+                        </Typography>
+                        <Button variant="contained" component={Link} to="/login">
+                            Intra in cont
+                        </Button>
+                    </Box>
+                </Box>
+            </Container>
+        );
+    }
 
     if (!cart) {
         return (
@@ -190,7 +254,6 @@ const Cart = () => {
                                 </TableCell>
                             </TableRow>
                         ))}
-
                     </TableBody>
                 </Table>
             )}

@@ -1,11 +1,13 @@
 // client/src/pages/Login.js
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { Container, Paper, Box, Typography, TextField, Button, Alert } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { CartContext } from '../context/CartContext';
 
 const Login = () => {
   const navigate = useNavigate();
+  const {setToken} = useContext(CartContext);
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   
@@ -24,6 +26,7 @@ const Login = () => {
       const { admin, token } = response.data;
       // Save the token as needed (e.g., localStorage)
       localStorage.setItem('token', token);
+      setToken(token);
       // Redirect based on the admin flag
       if (admin) {
         navigate('/admin'); // Admin dashboard route
