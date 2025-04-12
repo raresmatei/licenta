@@ -70,46 +70,6 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
   const [brands, setBrands] = useState([]);
   const [searchBrand, setSearchBrand] = useState('');
 
-  // Fetch categories on mount.
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const res = await axios.get(`${baseUrl}/productFields?field=category`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setCategories(res.data.values || []);
-      } catch (error) {
-        console.error('Error fetching categories:', error);
-      }
-    };
-    fetchCategories();
-  }, [baseUrl, token]);
-
-  // When category or priceRange (and refreshKey) changes, fetch brand values.
-  useEffect(() => {
-    const fetchBrands = async () => {
-      if (!selectedCategory) {
-        setBrands([]);
-        return;
-      }
-      console.log('fetching brands...')
-      try {
-        const url =
-          `${baseUrl}/productFields?field=brand` +
-          `&category=${encodeURIComponent(selectedCategory)}` +
-          `&minPrice=${priceRange[0]}&maxPrice=${priceRange[1]}`;
-        const res = await axios.get(url, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setBrands(res.data.values || []);
-      } catch (error) {
-        console.error('Error fetching brands:', error);
-      }
-    };
-    fetchBrands();
-  }, [baseUrl, token, selectedCategory, priceRange, refreshCategory]);
-
-  // When category or brand selection changes (or refreshKey), fetch the price boundaries.
   useEffect(() => {
     const fetchPriceBounds = async () => {
       if (!selectedCategory) {
@@ -140,6 +100,49 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
     };
     fetchPriceBounds();
   }, [baseUrl, token, selectedCategory, refreshPrice]);
+
+  // Fetch categories on mount.
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await axios.get(`${baseUrl}/productFields?field=category`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setCategories(res.data.values || []);
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+    fetchCategories();
+  }, [baseUrl, token]);
+
+
+
+  // When category or priceRange (and refreshKey) changes, fetch brand values.
+  useEffect(() => {
+    const fetchBrands = async () => {
+      if (!selectedCategory) {
+        setBrands([]);
+        return;
+      }
+      console.log('fetching brands...')
+      try {
+        const url =
+          `${baseUrl}/productFields?field=brand` +
+          `&category=${encodeURIComponent(selectedCategory)}` +
+          `&minPrice=${priceRange[0]}&maxPrice=${priceRange[1]}`;
+        const res = await axios.get(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setBrands(res.data.values || []);
+      } catch (error) {
+        console.error('Error fetching brands:', error);
+      }
+    };
+    fetchBrands();
+  }, [baseUrl, token, selectedCategory, priceRange, refreshCategory]);
+
+  // When category or brand selection changes (or refreshKey), fetch the price boundaries.
 
   // Pass filter criteria to parent.
   const triggerFilter = (cat, brandArray, priceArr) => {
