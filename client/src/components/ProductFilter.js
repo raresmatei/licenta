@@ -43,8 +43,9 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
     showFilters,
     setShowFilters,
     initialFilters = {},
-    refreshCategory, // New prop used to force refetching price boundaries.
-    refreshPrice
+    refreshBrand, // New prop used to force refetching price boundaries.
+    refreshPrice,
+    refreshCategory
   } = props;
 
   // Filter state initialization.
@@ -69,6 +70,22 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
   const [categories, setCategories] = useState([]);
   const [brands, setBrands] = useState([]);
   const [searchBrand, setSearchBrand] = useState('');
+
+  useEffect(() => {
+    console.log('fetching category...')
+    const fetchCategories = async () => {
+      try {
+        const res = await axios.get(`${baseUrl}/productFields?field=category`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setCategories(res.data.values || []);
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+    fetchCategories();
+  }, [baseUrl, token, refreshCategory]);
+
 
   useEffect(() => {
     const fetchPriceBounds = async () => {
@@ -102,21 +119,6 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
   }, [baseUrl, token, selectedCategory, refreshPrice]);
 
   // Fetch categories on mount.
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const res = await axios.get(`${baseUrl}/productFields?field=category`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setCategories(res.data.values || []);
-      } catch (error) {
-        console.error('Error fetching categories:', error);
-      }
-    };
-    fetchCategories();
-  }, [baseUrl, token]);
-
-
 
   // When category or priceRange (and refreshKey) changes, fetch brand values.
   useEffect(() => {
@@ -140,7 +142,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
       }
     };
     fetchBrands();
-  }, [baseUrl, token, selectedCategory, priceRange, refreshCategory]);
+  }, [baseUrl, token, selectedCategory, priceRange, refreshBrand]);
 
   // When category or brand selection changes (or refreshKey), fetch the price boundaries.
 

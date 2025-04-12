@@ -16,9 +16,14 @@ import {
   TextField,
   Box,
   Paper,
-  Slide
+  Slide,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  FormHelperText,
+  IconButton
 } from '@mui/material';
-import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate } from 'react-router-dom';
 import {jwtDecode} from 'jwt-decode';
@@ -56,6 +61,11 @@ const AdminDashboard = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingProduct, setDeletingProduct] = useState(null);
 
+    // New states for Category dropdown in the Add/Edit dialog.
+    const [availableCategories, setAvailableCategories] = useState([]);
+    const [isAddingNewCategory, setIsAddingNewCategory] = useState(false);
+    const [categoryRefresh, setCategoryRefresh] = useState(0);
+
   const baseUrl = process.env.REACT_APP_API_BASE_URL || '';
 
   // Authentication and admin check.
@@ -73,6 +83,20 @@ const AdminDashboard = () => {
       navigate('/login');
     }
   }, [navigate, token]);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await axios.get(`${baseUrl}/productFields?field=category`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setAvailableCategories(res.data.values || []);
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+      }
+    };
+    fetchCategories();
+  }, [baseUrl, token, categoryRefresh]);
 
   // Called by ProductFilter when filters change.
   const handleFilterUpdate = (newFilters) => {
@@ -168,7 +192,13 @@ const AdminDashboard = () => {
       // Force InfiniteProductList re-mount.
       setRefreshCounter((prev) => prev + 1);
       setRefreshPrice((prev)=>prev + 1);
+      setCategoryRefresh((prev) => prev + 1);
+      setIsAddingNewCategory(false);
       console.log('refreshed counter');
+      // if(isAddingNewCategory){
+      //   setCategoryRefresh((prev) => prev + 1);
+      //   console.log('new category');
+      // }
     } catch (error) {
       console.error('Error saving product:', error);
     } finally {
@@ -213,6 +243,7 @@ const AdminDashboard = () => {
         });
         // Force InfiniteProductList re-mount.
         setRefreshCounter((prev) => prev + 1);
+        setCategoryRefresh((prev) => prev + 1);
         setRefreshPrice((prev)=>prev + 1);
       } catch (error) {
         console.error('Error deleting product:', error);
@@ -294,8 +325,9 @@ const AdminDashboard = () => {
             showFilters={showFilters}
             setShowFilters={setShowFilters}
             initialFilters={filters}
-            refreshCategory={refreshCounter}
+            refreshBrand={refreshCounter}
             refreshPrice={refreshPrice}
+            refreshCategory={categoryRefresh}
           />
         </Box>
 
@@ -347,15 +379,46 @@ const AdminDashboard = () => {
             value={formData.brand}
             onChange={handleFormChange}
           />
-          <TextField
-            margin="dense"
-            label="Category"
-            name="category"
-            fullWidth
-            variant="outlined"
-            value={formData.category}
-            onChange={handleFormChange}
-          />
+          {/* Category Dropdown */}
+          <FormControl fullWidth margin="dense" variant="outlined">
+            <InputLabel id="category-select-label">Category</InputLabel>
+            <Select
+              labelId="category-select-label"
+              label="Category"
+              value={isAddingNewCategory ? 'new' : formData.category || ''}
+              onChange={(e) => {
+                if (e.target.value === 'new') {
+                  setIsAddingNewCategory(true);
+                  setFormData({ ...formData, category: '' });
+                } else {
+                  setIsAddingNewCategory(false);
+                  setFormData({ ...formData, category: e.target.value });
+                }
+              }}
+            >
+              {availableCategories.map((cat) => (
+                <MenuItem key={cat._id} value={cat._id}>
+                  {cat._id}
+                </MenuItem>
+              ))}
+              <MenuItem value="new">Add New Category</MenuItem>
+            </Select>
+            {isAddingNewCategory && (
+              <FormHelperText>Type new category below</FormHelperText>
+            )}
+          </FormControl>
+          {/* If "Add New Category" is chosen, show a text field */}
+          {isAddingNewCategory && (
+            <TextField
+              margin="dense"
+              label="New Category"
+              name="category"
+              fullWidth
+              variant="outlined"
+              value={formData.category}
+              onChange={handleFormChange}
+            />
+          )}
           <Button variant="contained" component="label" sx={{ mt: 2 }}>
             Upload Image
             <input type="file" hidden accept="image/*" onChange={handleFileChange} />
