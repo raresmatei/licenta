@@ -8,20 +8,33 @@ import { Link, useNavigate } from 'react-router-dom';
 import { IconButton, Badge } from '@mui/material';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import { CartContext } from '../context/CartContext';
+import {jwtDecode} from 'jwt-decode';
 
 const Navbar = () => {
   const { cartCount, setCart, setCartCount, setToken } = useContext(CartContext);
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
 
+  // Determine if the current user is an admin.
+  let isAdmin = false;
+  if (token) {
+    try {
+      const decoded = jwtDecode(token);
+      isAdmin = !!decoded.admin;
+    } catch (err) {
+      // If decoding fails, assume not admin.
+      console.error("Error decoding token:", err);
+    }
+  }
+
   const handleLogout = () => {
-    // Remove the token.
+    // Remove token from localStorage.
     localStorage.removeItem('token');
     setToken(null);
-    // Clear cart data from context so the badge updates.
+    // Clear cart state so the badge is cleared.
     setCart(null);
     setCartCount(0);
-    // Navigate to the login page.
+    // Redirect to the login page.
     navigate('/login');
   };
 
@@ -47,11 +60,14 @@ const Navbar = () => {
             </Button>
           </>
         )}
-        <IconButton color="inherit" component={Link} to="/cart">
-          <Badge badgeContent={cartCount} color="secondary">
-            <ShoppingCartIcon />
-          </Badge>
-        </IconButton>
+        {/* Show the cart only for non-admin users */}
+        {token && !isAdmin && (
+          <IconButton color="inherit" component={Link} to="/cart">
+            <Badge badgeContent={cartCount} color="secondary">
+              <ShoppingCartIcon />
+            </Badge>
+          </IconButton>
+        )}
       </Toolbar>
     </AppBar>
   );

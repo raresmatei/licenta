@@ -80,7 +80,7 @@ const LandingPage = () => {
                     <Typography variant="subtitle2">{product.category}</Typography>
                     <Typography variant="subtitle2">{product.brand}</Typography>
                     <Typography variant="body1" color="text.secondary">
-                      ${parseFloat(product.price).toFixed(2)}
+                      {parseFloat(product.price).toFixed(2)} Lei
                     </Typography>
                   </Box>
                 </Box>

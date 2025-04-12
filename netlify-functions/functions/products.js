@@ -175,7 +175,7 @@ const handler = async (event, context) => {
         const result = await multipart.parse(event);
 
         // Extract text fields; expected fields: id, name, price, description, existingImages
-        const { id, name, price, description, existingImages, category } = result;
+        const { id, name, price, description, existingImages, category, brand } = result;
         if (!id) {
           return {
             statusCode: 400,
@@ -221,6 +221,7 @@ const handler = async (event, context) => {
           price,
           description,
           category,
+          brand,
           images: mergedImages
         };
 

@@ -97,7 +97,7 @@ const Cart = () => {
                     return {
                         lineItem: {
                             price_data: {
-                                currency: 'usd',
+                                currency: 'ron',
                                 product_data: { name: product.name },
                                 unit_amount: Math.round(product.price * 100),
                             },
@@ -240,7 +240,7 @@ const Cart = () => {
                                     </Link>
                                 </TableCell>
                                 <TableCell>{item.quantity}</TableCell>
-                                <TableCell>${(item.product.price * item.quantity).toFixed(2)}</TableCell>
+                                <TableCell>{(item.product.price * item.quantity).toFixed(2)} Lei</TableCell>
                                 <TableCell>
                                     <IconButton onClick={() => handleIncrement(item)}>
                                         <AddIcon />

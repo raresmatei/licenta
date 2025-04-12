@@ -4,7 +4,7 @@ const withCors = require('../withCors');
 require('dotenv').config();
 
 const handler = async (event, context) => {
-  // Extract the query parameters.
+  // Extract query parameters.
   const queryParams = event.queryStringParameters || {};
   const { field } = queryParams;
   if (!field) {
@@ -13,17 +13,15 @@ const handler = async (event, context) => {
       body: JSON.stringify({ error: "Missing required query parameter: field" }),
     };
   }
-  
+
   try {
     await connectToDatabase();
-    
     let values;
     if (field === "brand") {
       const match = {};
       if (queryParams.category) {
         match.category = queryParams.category;
       }
-      // If price filters are provided, add them to the match criteria.
       if (queryParams.minPrice && queryParams.maxPrice) {
         match.price = {
           $gte: Number(queryParams.minPrice),
@@ -40,11 +38,37 @@ const handler = async (event, context) => {
         { $group: { _id: `$${field}`, count: { $sum: 1 } } },
         { $sort: { _id: 1 } }
       ]);
+    } else if (field === "price") {
+      // For price, include filters for category and brand if provided.
+      const match = {};
+      if (queryParams.category) {
+        match.category = queryParams.category;
+      }
+      if (queryParams.brand) {
+        match.brand = queryParams.brand;
+      }
+      // Aggregate to find the minimum and maximum price in the matching products.
+      values = await Product.aggregate([
+        { $match: match },
+        {
+          $group: {
+            _id: null,
+            minPrice: { $min: "$price" },
+            maxPrice: { $max: "$price" }
+          }
+        }
+      ]);
+      if (values && values.length > 0) {
+        // Return an object with minPrice and maxPrice.
+        values = values[0];
+      } else {
+        values = { minPrice: 0, maxPrice: 0 };
+      }
     } else {
       const distinct = await Product.distinct(field);
       values = distinct.map(val => ({ _id: val, count: 0 }));
     }
-    
+
     return {
       statusCode: 200,
       body: JSON.stringify({ values }),

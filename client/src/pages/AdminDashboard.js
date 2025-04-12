@@ -15,12 +15,13 @@ import {
   DialogActions,
   TextField,
   Box,
-  Paper
+  Paper,
+  Slide
 } from '@mui/material';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate } from 'react-router-dom';
-import { jwtDecode } from 'jwt-decode';
+import {jwtDecode} from 'jwt-decode';
 import axios from 'axios';
 import ProductFilter from '../components/ProductFilter';
 import InfiniteProductList from '../components/InfiniteProductList';
@@ -28,7 +29,16 @@ import InfiniteProductList from '../components/InfiniteProductList';
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
-  const [products, setProducts] = useState([]);
+
+  // State for filter usage.
+  const [filters, setFilters] = useState({});
+  const [showFilters, setShowFilters] = useState(false);
+  
+  // State to force re-fetch of products.
+  const [refreshCounter, setRefreshCounter] = useState(0);
+  const [refreshPrice, setRefreshPrice] = useState(0);
+
+  // Product management state.
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [formData, setFormData] = useState({
@@ -38,14 +48,17 @@ const AdminDashboard = () => {
     description: '',
     brand: '',
     category: '',
-    images: []  // Now an array of File objects
+    images: [] // Array of File objects or image URL strings.
   });
-  const [filters, setFilters] = useState(null)
   const [isSaving, setIsSaving] = useState(false);
+
+  // State for deletion confirmation modal.
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingProduct, setDeletingProduct] = useState(null);
 
   const baseUrl = process.env.REACT_APP_API_BASE_URL || '';
 
-  // Check authentication & admin flag
+  // Authentication and admin check.
   useEffect(() => {
     if (!token) {
       navigate('/login');
@@ -61,42 +74,52 @@ const AdminDashboard = () => {
     }
   }, [navigate, token]);
 
-  // Open the dialog for adding a new product
+  // Called by ProductFilter when filters change.
+  const handleFilterUpdate = (newFilters) => {
+    setFilters(newFilters);
+  };
+
+  // Open the dialog for creating a new product.
   const handleDialogOpen = () => {
     setEditingProduct(null);
-    setFormData({ name: '', price: '', images: [], description: '', brand: '', category: '' });
+    setFormData({
+      name: '',
+      price: '',
+      description: '',
+      brand: '',
+      category: '',
+      images: []
+    });
     setDialogOpen(true);
   };
 
-  // Close the dialog
+  // Close the dialog.
   const handleDialogClose = () => {
     setDialogOpen(false);
   };
 
-  // Handle changes in the form fields
+  // Handle changes in form fields.
   const handleFormChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // Handle file uploads.
   const handleFileChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
-    const alreadyUploadedFilesLength = formData.images ? formData.images.length : 0;
-
-    if (alreadyUploadedFilesLength + selectedFiles.length > 5) {
-      alert("You can upload a maximum of 5 images per product.");
+    const alreadyUploaded = formData.images ? formData.images.length : 0;
+    if (alreadyUploaded + selectedFiles.length > 5) {
+      alert('You can upload a maximum of 5 images per product.');
       return;
     }
-
-    // Push new images into the existing array of images
     setFormData({
       ...formData,
-      images: [...(formData.images || []), ...selectedFiles]
+      images: [...formData.images, ...selectedFiles]
     });
   };
 
-  // Save product: either create or update
+  // Save product: create new or update existing.
   const handleSaveProduct = async () => {
-    if (isSaving) return; // Prevent duplicate submission
+    if (isSaving) return;
     setIsSaving(true);
 
     const formDataToSend = new FormData();
@@ -109,7 +132,7 @@ const AdminDashboard = () => {
       formDataToSend.append('id', formData.id);
     }
 
-    // Separate new file objects from existing URL strings
+    // Separate new files from existing image URLs.
     const newFiles = [];
     const existingUrls = [];
     formData.images.forEach((item) => {
@@ -119,13 +142,9 @@ const AdminDashboard = () => {
         existingUrls.push(item);
       }
     });
-
-    // Append new file objects to FormData
     newFiles.forEach((file) => {
       formDataToSend.append('images', file);
     });
-
-    // Append the existing image URLs as a JSON string
     formDataToSend.append('existingImages', JSON.stringify(existingUrls));
 
     try {
@@ -137,12 +156,6 @@ const AdminDashboard = () => {
             'Content-Type': 'multipart/form-data'
           }
         });
-        // Replace the updated product in the list
-        setProducts((prev) =>
-          prev.map((p) =>
-            p._id === response.data.product._id ? response.data.product : p
-          )
-        );
       } else {
         response = await axios.post(`${baseUrl}/products`, formDataToSend, {
           headers: {
@@ -150,10 +163,12 @@ const AdminDashboard = () => {
             'Content-Type': 'multipart/form-data'
           }
         });
-        // Append the new product only once
-        setProducts((prev) => [...prev, response.data.product]);
       }
       setDialogOpen(false);
+      // Force InfiniteProductList re-mount.
+      setRefreshCounter((prev) => prev + 1);
+      setRefreshPrice((prev)=>prev + 1);
+      console.log('refreshed counter');
     } catch (error) {
       console.error('Error saving product:', error);
     } finally {
@@ -161,7 +176,7 @@ const AdminDashboard = () => {
     }
   };
 
-  // Open the dialog with product data for editing
+  // Open dialog with product data for editing.
   const handleEditProduct = (product) => {
     setEditingProduct(product);
     setFormData({
@@ -176,18 +191,34 @@ const AdminDashboard = () => {
     setDialogOpen(true);
   };
 
-  // Delete product
-  const handleDeleteProduct = async (productId) => {
-    try {
-      await axios.delete(`${baseUrl}/products`, {
-        params: { id: productId },
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setProducts((prevProducts) =>
-        prevProducts.filter((p) => p._id !== productId)
-      );
-    } catch (error) {
-      console.error('Error deleting product:', error);
+  // Open deletion confirmation modal.
+  const handleOpenDeleteDialog = (product) => {
+    setDeletingProduct(product);
+    setDeleteDialogOpen(true);
+  };
+
+  // Close deletion confirmation modal.
+  const handleCloseDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setDeletingProduct(null);
+  };
+
+  // Confirm deletion.
+  const handleConfirmDelete = async () => {
+    if (deletingProduct) {
+      try {
+        await axios.delete(`${baseUrl}/products`, {
+          params: { id: deletingProduct._id },
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        // Force InfiniteProductList re-mount.
+        setRefreshCounter((prev) => prev + 1);
+        setRefreshPrice((prev)=>prev + 1);
+      } catch (error) {
+        console.error('Error deleting product:', error);
+      } finally {
+        handleCloseDeleteDialog();
+      }
     }
   };
 
@@ -198,53 +229,38 @@ const AdminDashboard = () => {
     });
   };
 
-  const handleFilter = (filters) => {
-    setFilters(filters);
-  };
-
-  // Logout admin
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    navigate('/login');
-  };
-
-  const renderTable = (products, lastProductRef) => (
+  // Render function for InfiniteProductList: table view.
+  const renderTable = (products, lastRef) => (
     <Table>
       <TableHead>
         <TableRow>
           <TableCell>Name</TableCell>
           <TableCell>Price</TableCell>
-          <TableCell>Category</TableCell>
-          <TableCell>Brand</TableCell>
+          <TableCell>Image</TableCell>
+          <TableCell>Description</TableCell>
+          <TableCell>Actions</TableCell>
         </TableRow>
       </TableHead>
       <TableBody>
         {products.map((product, index) => {
-          // Attach the ref to the last item in the list
-          const refProp = index === products.length - 1 ? { ref: lastProductRef } : {};
+          const refProp = index === products.length - 1 ? { ref: lastRef } : {};
           return (
             <TableRow key={product._id} {...refProp}>
               <TableCell>{product.name}</TableCell>
-              <TableCell>${parseFloat(product.price).toFixed(2)}</TableCell>
+              <TableCell>{parseFloat(product.price).toFixed(2)} Lei</TableCell>
               <TableCell>
                 <img src={product.images[0]} alt={product.name} width={50} height={50} />
               </TableCell>
               <TableCell>{product.description}</TableCell>
               <TableCell>
-                <Button
-                  variant="outlined"
-                  onClick={() => handleEditProduct(product)}
-                  sx={{ marginRight: 1 }}
-                >
-                  Edit
-                </Button>
-                <Button
-                  variant="outlined"
-                  color="error"
-                  onClick={() => handleDeleteProduct(product._id)}
-                >
-                  Delete
-                </Button>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <Button variant="outlined" onClick={() => handleEditProduct(product)}>
+                    Edit
+                  </Button>
+                  <Button variant="outlined" color="error" onClick={() => handleOpenDeleteDialog(product)}>
+                    Delete
+                  </Button>
+                </Box>
               </TableCell>
             </TableRow>
           );
@@ -254,37 +270,53 @@ const AdminDashboard = () => {
   );
 
   return (
-    <Container sx={{ marginTop: 4 }}>
-      <Paper sx={{ padding: 2, marginBottom: 2 }}>
+    <Container maxWidth={false} sx={{ mt: 4, maxWidth: 'none' }}>
+      {/* Header Section */}
+      <Paper sx={{ p: 2, mb: 2 }}>
         <Typography variant="h4" gutterBottom>
           Admin Dashboard
         </Typography>
-        <Box sx={{ display: 'flex', gap: 2, marginBottom: 2 }}>
+        <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
           <Button variant="contained" onClick={handleDialogOpen}>
             Add Product
-          </Button>
-          <Button variant="outlined" onClick={handleLogout}>
-            Logout
           </Button>
         </Box>
       </Paper>
 
-      <ProductFilter baseUrl={baseUrl} token={token} onFilter={handleFilter} />
-      <Paper>
-        <InfiniteProductList
-          baseUrl={baseUrl}
-          token={token}
-          limit={10}
-          filters={filters ? filters: {}} // pass any filters if needed
-          renderProducts={renderTable}
-        />
-      </Paper>
+      {/* Main Content: Filter panel on the left, Table on the right */}
+      <Box sx={{ position: 'relative' }}>
+        {/* Filter Panel: absolutely positioned on the left with fixed width */}
+        <Box sx={{ position: 'absolute', top: 0, left: 0, width: '300px', zIndex: 1, ml: '16px' }}>
+          <ProductFilter
+            baseUrl={baseUrl}
+            token={token}
+            onFilter={handleFilterUpdate}
+            showFilters={showFilters}
+            setShowFilters={setShowFilters}
+            initialFilters={filters}
+            refreshCategory={refreshCounter}
+            refreshPrice={refreshPrice}
+          />
+        </Box>
+
+        {/* Product Table: Shifts right when filter panel is open */}
+        <Box sx={{ transition: 'margin-left 1s', marginLeft: showFilters ? '320px' : '0px' }}>
+          <Paper sx={{ p: 2 }}>
+            <InfiniteProductList
+              key={`productlist-${refreshCounter}`}
+              baseUrl={baseUrl}
+              token={token}
+              limit={10}
+              filters={filters || {}}
+              renderProducts={renderTable}
+            />
+          </Paper>
+        </Box>
+      </Box>
 
       {/* Dialog for Adding/Editing a Product */}
       <Dialog open={dialogOpen} onClose={handleDialogClose}>
-        <DialogTitle>
-          {editingProduct ? 'Edit Product' : 'Add Product'}
-        </DialogTitle>
+        <DialogTitle>{editingProduct ? 'Edit Product' : 'Add Product'}</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
@@ -324,7 +356,7 @@ const AdminDashboard = () => {
             value={formData.category}
             onChange={handleFormChange}
           />
-          <Button variant="contained" component="label">
+          <Button variant="contained" component="label" sx={{ mt: 2 }}>
             Upload Image
             <input type="file" hidden accept="image/*" onChange={handleFileChange} />
           </Button>
@@ -336,7 +368,7 @@ const AdminDashboard = () => {
                 flexWrap: 'nowrap',
                 gap: 2,
                 overflowX: 'auto',
-                paddingTop: '10px'
+                pt: 1,
               }}
             >
               {formData.images.map((file, index) => (
@@ -349,7 +381,7 @@ const AdminDashboard = () => {
                       height: 150,
                       objectFit: 'cover',
                       borderRadius: '8px'
-                    }} F
+                    }}
                   />
                   <IconButton
                     onClick={() => handleRemoveImage(index)}
@@ -371,7 +403,6 @@ const AdminDashboard = () => {
               ))}
             </Box>
           )}
-
           <TextField
             margin="dense"
             label="Description"
@@ -386,6 +417,23 @@ const AdminDashboard = () => {
           <Button onClick={handleDialogClose}>Cancel</Button>
           <Button onClick={handleSaveProduct} variant="contained" disabled={isSaving}>
             Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Deletion Confirmation Modal */}
+      <Dialog open={deleteDialogOpen} onClose={handleCloseDeleteDialog}>
+        <DialogTitle>Confirm Deletion</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete the product{' '}
+            <strong>{deletingProduct ? deletingProduct.name : ''}</strong>?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDeleteDialog}>Cancel</Button>
+          <Button onClick={handleConfirmDelete} variant="contained" color="error">
+            Confirm Delete
           </Button>
         </DialogActions>
       </Dialog>

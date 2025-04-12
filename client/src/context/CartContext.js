@@ -29,7 +29,6 @@ export const CartProvider = ({ children }) => {
       }
     } catch (error) {
       console.error("Error fetching cart in context:", error);
-      alert('Error fetching cart.');
     }
   };
 

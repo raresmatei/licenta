@@ -1,4 +1,3 @@
-// src/components/ProductFilter.js
 import React, { useState, useEffect, forwardRef } from 'react';
 import {
   Box,
@@ -29,15 +28,26 @@ import axios from 'axios';
  * - The toggle line reads "ASCUNDE FILTRE" (Hide Filters) when open and
  *   "ARATA FILTRE" (Show Filters) when closed.
  * - The main panel slides in/out from left to right over 1 second.
- * - Filter values (category, brand, price) are initialized from the `initialFilters`
- *   prop (sourced from the URL) and any changes automatically trigger filtering.
+ * - Filter values (category, brand, priceRange) are initialized from the `initialFilters`
+ *   prop and any changes automatically trigger filtering.
  *
- * Now, the available brand filter values are also re-fetched whenever the price slider moves.
+ * This component also fetches available brand values and, now, the price boundaries
+ * (min and max price) based on the current filters. The fetch for prices is triggered
+ * whenever the selected category, selected brands, or the external refresh prop changes.
  */
 const ProductFilter = forwardRef(function ProductFilter(props, ref) {
-  const { baseUrl, token, onFilter, showFilters, setShowFilters, initialFilters = {} } = props;
+  const {
+    baseUrl,
+    token,
+    onFilter,
+    showFilters,
+    setShowFilters,
+    initialFilters = {},
+    refreshCategory, // New prop used to force refetching price boundaries.
+    refreshPrice
+  } = props;
 
-  // Initialize filter values from initialFilters.
+  // Filter state initialization.
   const [selectedCategory, setSelectedCategory] = useState(initialFilters.category || '');
   const [selectedBrands, setSelectedBrands] = useState(
     initialFilters.brand ? initialFilters.brand.split(',') : []
@@ -47,15 +57,16 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
       ? [Number(initialFilters.minPrice), Number(initialFilters.maxPrice)]
       : [0, 700]
   );
+  // New state for the fetched price boundaries.
+  const [priceBounds, setPriceBounds] = useState([0, 700]);
 
-  // Toggles for internal collapsible sections.
-  const [showCategory, setShowCategory] = useState(true);
-  const [showPrice, setShowPrice] = useState(true);
-  const [showBrand, setShowBrand] = useState(true);
+  // Toggles for collapsible sections.
+  const [showCategorySection, setShowCategorySection] = useState(true);
+  const [showPriceSection, setShowPriceSection] = useState(true);
+  const [showBrandSection, setShowBrandSection] = useState(true);
 
-  // Data from backend.
+  // Data fetched from backend.
   const [categories, setCategories] = useState([]);
-  // When fetching brands, we now include the price range.
   const [brands, setBrands] = useState([]);
   const [searchBrand, setSearchBrand] = useState('');
 
@@ -74,16 +85,17 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
     fetchCategories();
   }, [baseUrl, token]);
 
-  // When a category is selected OR the priceRange changes,
-  // fetch the corresponding brands, filtering by both category and price.
+  // When category or priceRange (and refreshKey) changes, fetch brand values.
   useEffect(() => {
     const fetchBrands = async () => {
       if (!selectedCategory) {
         setBrands([]);
         return;
       }
+      console.log('fetching brands...')
       try {
-        const url = `${baseUrl}/productFields?field=brand` +
+        const url =
+          `${baseUrl}/productFields?field=brand` +
           `&category=${encodeURIComponent(selectedCategory)}` +
           `&minPrice=${priceRange[0]}&maxPrice=${priceRange[1]}`;
         const res = await axios.get(url, {
@@ -95,26 +107,57 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
       }
     };
     fetchBrands();
-  }, [baseUrl, token, selectedCategory, priceRange]);  // note: priceRange is added here
+  }, [baseUrl, token, selectedCategory, priceRange, refreshCategory]);
 
-  // Send current filter selections back to the parent.
+  // When category or brand selection changes (or refreshKey), fetch the price boundaries.
+  useEffect(() => {
+    const fetchPriceBounds = async () => {
+      if (!selectedCategory) {
+        return; // Optionally, set default bounds.
+      }
+      try {
+        let url = `${baseUrl}/productFields?field=price&category=${encodeURIComponent(selectedCategory)}`;
+        if (selectedBrands.length > 0) {
+          url += `&brand=${selectedBrands.join(',')}`;
+        }
+        const res = await axios.get(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.data.values) {
+          const newMin = Number(res.data.values.minPrice);
+          const newMax = Number(res.data.values.maxPrice);
+          setPriceBounds([newMin, newMax]);
+          // Optionally adjust priceRange if current slider value is out of these bounds.
+          if (priceRange[0] < newMin || priceRange[1] > newMax) {
+            const adjustedRange = [newMin, newMax];
+            setPriceRange(adjustedRange);
+            triggerFilter(selectedCategory, selectedBrands, adjustedRange);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching price boundaries:', error);
+      }
+    };
+    fetchPriceBounds();
+  }, [baseUrl, token, selectedCategory, refreshPrice]);
+
+  // Pass filter criteria to parent.
   const triggerFilter = (cat, brandArray, priceArr) => {
-    const filters = {};
-    if (cat) filters.category = cat;
-    if (brandArray.length > 0) filters.brand = brandArray.join(',');
-    filters.minPrice = priceArr[0].toString();
-    filters.maxPrice = priceArr[1].toString();
-    onFilter?.(filters);
+    const filtersObj = {};
+    if (cat) filtersObj.category = cat;
+    if (brandArray.length > 0) filtersObj.brand = brandArray.join(',');
+    filtersObj.minPrice = priceArr[0].toString();
+    filtersObj.maxPrice = priceArr[1].toString();
+    onFilter?.(filtersObj);
   };
 
-  // Category selection handler.
+  // Handlers for selections.
   const handleCategoryClick = (cat) => {
     setSelectedCategory(cat);
     setSelectedBrands([]);
     triggerFilter(cat, [], priceRange);
   };
 
-  // Brand checkbox handler – filtering updates happen immediately.
   const handleBrandChange = (evt) => {
     const brand = evt.target.name;
     const checked = evt.target.checked;
@@ -125,16 +168,15 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
     triggerFilter(selectedCategory, updatedBrands, priceRange);
   };
 
-  // Price slider handlers.
   const handleSliderChange = (evt, newValue) => {
     setPriceRange(newValue);
   };
+
   const handleSliderCommit = (evt, newValue) => {
-    // Trigger filter update on slider commit.
     triggerFilter(selectedCategory, selectedBrands, newValue);
   };
 
-  // Filter the brands list based on search input.
+  // Filter brands based on search input.
   const filteredBrands = brands.filter((brandObj) =>
     brandObj._id.toLowerCase().includes(searchBrand.toLowerCase())
   );
@@ -152,9 +194,9 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
         {showFilters ? <ArrowLeft /> : <ArrowRight />}
       </Box>
 
-      {/* Slide transition for the main filter panel */}
+      {/* Slide transition for filter panel */}
       <Slide in={showFilters} direction="right" mountOnEnter unmountOnExit timeout={1000}>
-        <Paper ref={ref} sx={{ p: 1 }}>
+        <Paper ref={ref} sx={{ p: 2 }}>
           {/* CATEGORY SECTION */}
           <Box sx={{ mb: 1 }}>
             <Box
@@ -165,14 +207,14 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
                 cursor: 'pointer',
                 mb: 1,
               }}
-              onClick={() => setShowCategory((prev) => !prev)}
+              onClick={() => setShowCategorySection((prev) => !prev)}
             >
               <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
                 CATEGORY
               </Typography>
-              {showCategory ? <ExpandLess /> : <ExpandMore />}
+              {showCategorySection ? <ExpandLess /> : <ExpandMore />}
             </Box>
-            <Collapse in={showCategory}>
+            <Collapse in={showCategorySection}>
               <Box
                 sx={{
                   mt: 1,
@@ -210,27 +252,32 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
             </Collapse>
           </Box>
 
-          {/* PRICE SECTION (only visible if a category is selected) */}
+          {/* PRICE SECTION (visible if a category is selected) */}
           {selectedCategory && (
             <Box sx={{ mb: 1 }}>
               <Box
-                sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
-                onClick={() => setShowPrice((prev) => !prev)}
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setShowPriceSection((prev) => !prev)}
               >
                 <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
                   PRICE
                 </Typography>
-                {showPrice ? <ExpandLess /> : <ExpandMore />}
+                {showPriceSection ? <ExpandLess /> : <ExpandMore />}
               </Box>
-              <Collapse in={showPrice}>
+              <Collapse in={showPriceSection}>
                 <Box sx={{ mt: 1 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                     <Typography variant="body2">{priceRange[0]} Lei</Typography>
                     <Typography variant="body2">{priceRange[1]} Lei</Typography>
                   </Box>
                   <Slider
-                    min={0}
-                    max={700}
+                    min={priceBounds[0]}
+                    max={priceBounds[1]}
                     value={priceRange}
                     onChange={handleSliderChange}
                     onChangeCommitted={handleSliderCommit}
@@ -242,20 +289,25 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
             </Box>
           )}
 
-          {/* BRAND SECTION (only visible if a category is selected) */}
+          {/* BRAND SECTION (visible if a category is selected) */}
           {selectedCategory && (
             <Box sx={{ mb: 1 }}>
               <Box
-                sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
-                onClick={() => setShowBrand((prev) => !prev)}
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setShowBrandSection((prev) => !prev)}
               >
                 <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
                   BRAND
                 </Typography>
-                {showBrand ? <ExpandLess /> : <ExpandMore />}
+                {showBrandSection ? <ExpandLess /> : <ExpandMore />}
               </Box>
-              <Collapse in={showBrand}>
-                {/* Brand search field */}
+              <Collapse in={showBrandSection}>
+                {/* Search field for filtering brands */}
                 <Box sx={{ mt: 1 }}>
                   <TextField
                     fullWidth
@@ -297,7 +349,14 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
                         label={
                           <span>
                             {brandObj._id}{' '}
-                            <span style={{ fontWeight: 'bold', fontSize: '0.8rem', color: '#1976d2', marginLeft: '4px' }}>
+                            <span
+                              style={{
+                                fontWeight: 'bold',
+                                fontSize: '0.8rem',
+                                color: '#1976d2',
+                                marginLeft: '4px',
+                              }}
+                            >
                               ({brandObj.count})
                             </span>
                           </span>
@@ -309,7 +368,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
               </Collapse>
             </Box>
           )}
-          {/* No Apply button – filtering updates occur immediately */}
+          {/* No Apply button – filter updates occur automatically */}
         </Paper>
       </Slide>
     </Box>
