@@ -80,7 +80,7 @@ const LandingPage = () => {
                     <Typography variant="subtitle2">{product.category}</Typography>
                     <Typography variant="subtitle2">{product.brand}</Typography>
                     <Typography variant="body1" color="text.secondary">
-                      {parseFloat(product.price).toFixed(2)} Lei
+                      ${parseFloat(product.price).toFixed(2)}
                     </Typography>
                   </Box>
                 </Box>
@@ -99,7 +99,7 @@ const LandingPage = () => {
         Filter Panel – absolutely positioned on the left with a fixed width,
         with a little margin for spacing.
       */}
-      <Box sx={{ position: 'sticky', top: 0, left: 0, width: '300px', zIndex: 1, ml: '16px' }}>
+      <Box sx={{ position: 'absolute', top: 0, left: 0, width: '300px', zIndex: 1, ml: '16px' }}>
         <ProductFilter
           baseUrl={baseUrl}
           token={token}
