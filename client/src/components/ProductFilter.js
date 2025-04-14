@@ -1,3 +1,4 @@
+// client/src/components/ProductFilter.js
 import React, { useState, useEffect, forwardRef } from 'react';
 import {
   Box,
@@ -31,9 +32,12 @@ import axios from 'axios';
  * - Filter values (category, brand, priceRange) are initialized from the `initialFilters`
  *   prop and any changes automatically trigger filtering.
  *
- * This component also fetches available brand values and, now, the price boundaries
- * (min and max price) based on the current filters. The fetch for prices is triggered
- * whenever the selected category, selected brands, or the external refresh prop changes.
+ * This component also fetches available brand values and the price boundaries
+ * (min and max price) based on the current filters.
+ *
+ * The fetching of brand values when the price slider is moved is now debounced:
+ * a dedicated useEffect listens only to the priceRange changes and waits 500ms
+ * after the user stops moving the slider before issuing the API request.
  */
 const ProductFilter = forwardRef(function ProductFilter(props, ref) {
   const {
@@ -43,9 +47,9 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
     showFilters,
     setShowFilters,
     initialFilters = {},
-    refreshBrand, // New prop used to force refetching price boundaries.
-    refreshPrice,
-    refreshCategory
+    refreshBrand,    // External triggers for refetching brands if needed.
+    refreshPrice,    // External trigger for refetching price boundaries.
+    refreshCategory, // External trigger for refetching categories.
   } = props;
 
   // Filter state initialization.
@@ -58,7 +62,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
       ? [Number(initialFilters.minPrice), Number(initialFilters.maxPrice)]
       : [0, 700]
   );
-  // New state for the fetched price boundaries.
+  // State for the fetched price boundaries.
   const [priceBounds, setPriceBounds] = useState([0, 700]);
 
   // Toggles for collapsible sections.
@@ -71,8 +75,8 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
   const [brands, setBrands] = useState([]);
   const [searchBrand, setSearchBrand] = useState('');
 
+  // Fetch categories (re-fetch if refreshCategory changes).
   useEffect(() => {
-    console.log('fetching category...')
     const fetchCategories = async () => {
       try {
         const res = await axios.get(`${baseUrl}/productFields?field=category`, {
@@ -86,12 +90,10 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
     fetchCategories();
   }, [baseUrl, token, refreshCategory]);
 
-
+  // Fetch price boundaries when selectedCategory, selectedBrands, or refreshPrice changes.
   useEffect(() => {
     const fetchPriceBounds = async () => {
-      if (!selectedCategory) {
-        return; // Optionally, set default bounds.
-      }
+      if (!selectedCategory) return;
       try {
         let url = `${baseUrl}/productFields?field=price&category=${encodeURIComponent(selectedCategory)}`;
         if (selectedBrands.length > 0) {
@@ -104,8 +106,8 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
           const newMin = Number(res.data.values.minPrice);
           const newMax = Number(res.data.values.maxPrice);
           setPriceBounds([newMin, newMax]);
-          // Optionally adjust priceRange if current slider value is out of these bounds.
-          if (priceRange[0] < newMin || priceRange[1] > newMax) {
+          // Optionally adjust the current price range if it's out of bounds.
+          if (selectedBrands.length === 0 || priceRange[0] < newMin || priceRange[1] > newMax) {
             const adjustedRange = [newMin, newMax];
             setPriceRange(adjustedRange);
             triggerFilter(selectedCategory, selectedBrands, adjustedRange);
@@ -116,35 +118,36 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
       }
     };
     fetchPriceBounds();
-  }, [baseUrl, token, selectedCategory, refreshPrice]);
+  }, [baseUrl, token, selectedCategory, selectedBrands, refreshPrice]);
 
-  // Fetch categories on mount.
-
-  // When category or priceRange (and refreshKey) changes, fetch brand values.
+  // New useEffect: Debounced fetching of brand values when priceRange changes.
   useEffect(() => {
-    const fetchBrands = async () => {
+    const debounceHandler = setTimeout(() => {
       if (!selectedCategory) {
         setBrands([]);
         return;
       }
-      console.log('fetching brands...')
-      try {
-        const url =
-          `${baseUrl}/productFields?field=brand` +
-          `&category=${encodeURIComponent(selectedCategory)}` +
-          `&minPrice=${priceRange[0]}&maxPrice=${priceRange[1]}`;
-        const res = await axios.get(url, {
+      const url =
+        `${baseUrl}/productFields?field=brand` +
+        `&category=${encodeURIComponent(selectedCategory)}` +
+        `&minPrice=${priceRange[0]}&maxPrice=${priceRange[1]}`;
+      axios
+        .get(url, {
           headers: { Authorization: `Bearer ${token}` },
-        });
-        setBrands(res.data.values || []);
-      } catch (error) {
-        console.error('Error fetching brands:', error);
-      }
-    };
-    fetchBrands();
-  }, [baseUrl, token, selectedCategory, priceRange, refreshBrand]);
+        })
+        .then((res) => setBrands(res.data.values || []))
+        .catch((error) => console.error('Error fetching brands:', error));
+    }, 500);
+    return () => clearTimeout(debounceHandler);
+  }, [priceRange]); // This useEffect listens only to priceRange changes.
 
-  // When category or brand selection changes (or refreshKey), fetch the price boundaries.
+  // Debounced effect for triggering filter updates (if needed).
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      triggerFilter(selectedCategory, selectedBrands, priceRange);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [selectedCategory, selectedBrands, priceRange]);
 
   // Pass filter criteria to parent.
   const triggerFilter = (cat, brandArray, priceArr) => {
@@ -177,11 +180,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
     setPriceRange(newValue);
   };
 
-  const handleSliderCommit = (evt, newValue) => {
-    triggerFilter(selectedCategory, selectedBrands, newValue);
-  };
-
-  // Filter brands based on search input.
+  // Filter brands based on the search input.
   const filteredBrands = brands.filter((brandObj) =>
     brandObj._id.toLowerCase().includes(searchBrand.toLowerCase())
   );
@@ -199,7 +198,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
         {showFilters ? <ArrowLeft /> : <ArrowRight />}
       </Box>
 
-      {/* Slide transition for filter panel */}
+      {/* Slide transition for the main filter panel */}
       <Slide in={showFilters} direction="right" mountOnEnter unmountOnExit timeout={1000}>
         <Paper ref={ref} sx={{ p: 2 }}>
           {/* CATEGORY SECTION */}
@@ -285,7 +284,6 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
                     max={priceBounds[1]}
                     value={priceRange}
                     onChange={handleSliderChange}
-                    onChangeCommitted={handleSliderCommit}
                     valueLabelDisplay="auto"
                     sx={{ mt: 1 }}
                   />
@@ -312,7 +310,6 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
                 {showBrandSection ? <ExpandLess /> : <ExpandMore />}
               </Box>
               <Collapse in={showBrandSection}>
-                {/* Search field for filtering brands */}
                 <Box sx={{ mt: 1 }}>
                   <TextField
                     fullWidth
@@ -373,7 +370,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
               </Collapse>
             </Box>
           )}
-          {/* No Apply button – filter updates occur automatically */}
+          {/* No explicit "Apply" button – filter updates occur automatically */}
         </Paper>
       </Slide>
     </Box>

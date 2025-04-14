@@ -99,7 +99,7 @@ const LandingPage = () => {
         Filter Panel – absolutely positioned on the left with a fixed width,
         with a little margin for spacing.
       */}
-      <Box sx={{ position: 'absolute', top: 0, left: 0, width: '300px', zIndex: 1, ml: '16px' }}>
+      <Box sx={{ position: 'sticky', top: 0, left: 0, width: '300px', zIndex: 1, ml: '16px' }}>
         <ProductFilter
           baseUrl={baseUrl}
           token={token}
