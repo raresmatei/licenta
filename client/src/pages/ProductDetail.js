@@ -30,7 +30,7 @@ const ProductDetail = () => {
         };
         fetchProduct();
 
-    }, [id]);
+    }, [id, baseUrl, token]);
 
     const handleAddToCart = async () => {
         try {

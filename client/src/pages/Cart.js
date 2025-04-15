@@ -1,5 +1,5 @@
 // src/pages/Cart.js
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import {
     Container,
     Typography,
@@ -17,7 +17,7 @@ import {
     DialogActions
 } from '@mui/material';
 import axios from 'axios';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -31,21 +31,9 @@ const Cart = () => {
     const token = localStorage.getItem('token'); // check token to see if logged in
     const baseUrl = process.env.REACT_APP_API_BASE_URL || '';
     const [checkoutOpen, setCheckoutOpen] = useState(false);
-    const navigate = useNavigate();
     const { cart, refreshCart } = useContext(CartContext);
 
-    const fetchCartProducts = async () => {
-        if (!cart || cart.items.length === 0) return;
-        const prods = await Promise.all(
-            cart.items.map(async (item) => ({
-                ...item,
-                product: await fetchProduct(item.product)
-            }))
-        );
-        setCardProducts(prods);
-    };
-
-    const fetchProduct = async (id) => {
+    const fetchProduct = useCallback(async (id) => {
         try {
             const response = await axios.get(`${baseUrl}/products/?id=${id}`, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -54,7 +42,19 @@ const Cart = () => {
         } catch (error) {
             console.error('Error fetching product details:', error);
         }
-    };
+    }, [baseUrl, token]);
+
+    const fetchCartProducts = useCallback(async () => {
+        if (!cart || cart.items.length === 0) return;
+        const prods = await Promise.all(
+            cart.items.map(async (item) => ({
+                ...item,
+                product: await fetchProduct(item.product)
+            }))
+        );
+        console.log('prods: ', prods)
+        setCardProducts(prods);
+    }, [fetchProduct, cart]);
 
     const updateQuantity = async (productId, newQuantity) => {
         try {
@@ -77,10 +77,6 @@ const Cart = () => {
     const handleDecrement = (item) => {
         const newQuantity = item.quantity - 1;
         updateQuantity(item.product._id, newQuantity);
-    };
-
-    const handleDelete = (item) => {
-        updateQuantity(item.product._id, 0);
     };
 
     // Checkout callback
@@ -141,7 +137,7 @@ const Cart = () => {
 
     useEffect(() => {
         fetchCartProducts();
-    }, [cart]); // cart changes whenever refreshCart is called
+    }, [fetchCartProducts]); // cart changes whenever refreshCart is called
 
     // If there's no user token, show the "logged out" view
     if (!token) {
@@ -204,6 +200,8 @@ const Cart = () => {
         );
     }
 
+    console.log('cartProds: ', cartProducts)
+    console.log('cart: ', cart)
     return (
         <Container sx={{ mt: 4 }}>
             <Typography variant="h4" gutterBottom>
@@ -212,7 +210,7 @@ const Cart = () => {
             <Typography variant="h6" sx={{ mb: 2 }}>
                 Total Items: {cart.itemCount || 0}
             </Typography>
-            {cartProducts.length === 0 ? (
+            {cart.items.length === 0 ? (
                 <Typography>Your cart is empty.</Typography>
             ) : (
                 <Table>

@@ -45,7 +45,12 @@ const handler = async (event, context) => {
         match.category = queryParams.category;
       }
       if (queryParams.brand) {
-        match.brand = queryParams.brand;
+        // If multiple brands are selected (comma-separated), split and use $in.
+        if (queryParams.brand.indexOf(',') !== -1) {
+          match.brand = { $in: queryParams.brand.split(',').map(b => b.trim()) };
+        } else {
+          match.brand = queryParams.brand;
+        }
       }
       // Aggregate to find the minimum and maximum price in the matching products.
       values = await Product.aggregate([

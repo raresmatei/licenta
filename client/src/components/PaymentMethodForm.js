@@ -1,11 +1,11 @@
 // src/components/PaymentMethodForm.js
-import React, { useState } from 'react';
-import { Box, Button, TextField, Typography, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
+import React from 'react';
+import { Box, Button, Typography } from '@mui/material';
 
 const PaymentMethodForm = ({ paymentMethod, setPaymentMethod, cardInfo, setCardInfo }) => {
-  const handleCardInfoChange = (e) => {
-    setCardInfo({ ...cardInfo, [e.target.name]: e.target.value });
-  };
+  // const handleCardInfoChange = (e) => {
+  //   setCardInfo({ ...cardInfo, [e.target.name]: e.target.value });
+  // };
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>

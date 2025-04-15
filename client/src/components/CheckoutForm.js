@@ -2,41 +2,43 @@
 import React, { useState } from 'react';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
 import ShippingAddressForm from './ShippingAddressForm';
-import PaymentMethodForm from './PaymentMethodForm';
+// import PaymentMethodForm from './PaymentMethodForm';
 
 const CheckoutForm = ({ open, onClose, onCheckout }) => {
     const [checkoutStep, setCheckoutStep] = useState(0);
     const [shippingAddress, setShippingAddress] = useState({});
-    const [paymentMethod, setPaymentMethod] = useState('card'); // or 'cash'
-    const [cardInfo, setCardInfo] = useState({});
+    // const [paymentMethod, setPaymentMethod] = useState('card'); // or 'cash'
+    const paymentMethod = 'card';
+    // let cardInfo = {};
+    // const [cardInfo, setCardInfo] = useState({});
 
-    const isShippingValid = () => {
-        const {
-            fullName,
-            addressLine1,
-            country,
-            state,
-            city,
-            zip
-        } = shippingAddress;
-        // Return true only if all fields have values
-        return (
-            fullName &&
-            addressLine1 &&
-            country &&
-            state &&
-            city &&
-            zip
-        );
-    };
+    // const isShippingValid = () => {
+    //     const {
+    //         fullName,
+    //         addressLine1,
+    //         country,
+    //         state,
+    //         city,
+    //         zip
+    //     } = shippingAddress;
+    //     // Return true only if all fields have values
+    //     return (
+    //         fullName &&
+    //         addressLine1 &&
+    //         country &&
+    //         state &&
+    //         city &&
+    //         zip
+    //     );
+    // };
 
-    const handleNext = () => {
-        if (!isShippingValid()) {
-            alert('Please fill out all required fields.');
-            return;
-        }
-        setCheckoutStep(1);
-    };
+    // const handleNext = () => {
+    //     if (!isShippingValid()) {
+    //         alert('Please fill out all required fields.');
+    //         return;
+    //     }
+    //     setCheckoutStep(1);
+    // };
 
     const handleBack = () => {
         setCheckoutStep(0);
@@ -47,7 +49,7 @@ const CheckoutForm = ({ open, onClose, onCheckout }) => {
         const checkoutData = {
             shippingAddress,
             paymentMethod,
-            cardInfo: paymentMethod === 'card' ? cardInfo : null,
+            cardInfo: paymentMethod,
         };
         // Call the provided onCheckout callback with the checkoutData
         onCheckout(checkoutData);

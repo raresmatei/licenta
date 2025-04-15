@@ -1,4 +1,3 @@
-// src/components/InfiniteProductList.js
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { Box, CircularProgress } from '@mui/material';
@@ -8,14 +7,15 @@ const InfiniteProductList = ({ baseUrl, token, filters = {}, renderProducts }) =
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
-  const limit = 10; // number of products per page
+  const limit = 10; // Number of products per page
 
+  // Fetch products from the backend.
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
-      // Start with pagination parameters
+      // Start with pagination parameters.
       const params = { page, limit };
-      // Loop over filters and add only non-empty values
+      // Add non-empty filters.
       Object.keys(filters).forEach(key => {
         if (filters[key] !== "" && filters[key] !== null && filters[key] !== undefined) {
           params[key] = filters[key];
@@ -27,6 +27,7 @@ const InfiniteProductList = ({ baseUrl, token, filters = {}, renderProducts }) =
         params,
       });
       const newProducts = response.data.products;
+      // On page 1, replace existing products; on subsequent pages, append them.
       setProducts(prev => (page === 1 ? newProducts : [...prev, ...newProducts]));
       if (newProducts.length < limit) {
         setHasMore(false);
@@ -37,19 +38,20 @@ const InfiniteProductList = ({ baseUrl, token, filters = {}, renderProducts }) =
       setLoading(false);
     }
   }, [baseUrl, token, page, filters]);
-  
 
+  // Fetch products when the fetchProducts function changes.
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
 
+  // Clear products and reset pagination when filters change.
   useEffect(() => {
     setPage(1);
-    setProducts([]); // Clear out the current product list
+    setProducts([]);
     setHasMore(true);
-  }, [filters]);  
+  }, [filters]);
 
-  // Intersection Observer to detect when the last product is visible
+  // Intersection Observer to detect when the last product is visible.
   const observer = useRef();
   const lastProductRef = useCallback(node => {
     if (loading) return;

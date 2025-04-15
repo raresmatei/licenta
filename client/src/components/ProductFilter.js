@@ -1,5 +1,5 @@
 // client/src/components/ProductFilter.js
-import React, { useState, useEffect, forwardRef } from 'react';
+import React, { useState, useEffect, forwardRef, useCallback } from 'react';
 import {
   Box,
   FormGroup,
@@ -29,8 +29,8 @@ import axios from 'axios';
  * - The toggle line reads "ASCUNDE FILTRE" (Hide Filters) when open and
  *   "ARATA FILTRE" (Show Filters) when closed.
  * - The main panel slides in/out from left to right over 1 second.
- * - Filter values (category, brand, priceRange) are initialized from the `initialFilters`
- *   prop and any changes automatically trigger filtering.
+ * - Filter values (category, brand, priceRange) are initialized from the
+ *   `initialFilters` prop and any changes automatically trigger filtering.
  *
  * This component also fetches available brand values and the price boundaries
  * (min and max price) based on the current filters.
@@ -41,15 +41,14 @@ import axios from 'axios';
  */
 const ProductFilter = forwardRef(function ProductFilter(props, ref) {
   const {
-    baseUrl,
-    token,
+    baseUrl,           // Constant
+    token,             // Constant
     onFilter,
     showFilters,
     setShowFilters,
     initialFilters = {},
-    refreshBrand,    // External triggers for refetching brands if needed.
-    refreshPrice,    // External trigger for refetching price boundaries.
-    refreshCategory, // External trigger for refetching categories.
+    refreshPrice,      // External trigger for refetching price boundaries.
+    refreshCategory,   // External trigger for refetching categories.
   } = props;
 
   // Filter state initialization.
@@ -75,6 +74,16 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
   const [brands, setBrands] = useState([]);
   const [searchBrand, setSearchBrand] = useState('');
 
+  // Memoize triggerFilter so that its identity is stable.
+  const triggerFilter = useCallback((cat, brandArray, priceArr) => {
+    const filtersObj = {};
+    if (cat) filtersObj.category = cat;
+    if (brandArray.length > 0) filtersObj.brand = brandArray.join(',');
+    filtersObj.minPrice = priceArr[0].toString();
+    filtersObj.maxPrice = priceArr[1].toString();
+    onFilter?.(filtersObj);
+  }, [onFilter]);
+
   // Fetch categories (re-fetch if refreshCategory changes).
   useEffect(() => {
     const fetchCategories = async () => {
@@ -91,6 +100,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
   }, [baseUrl, token, refreshCategory]);
 
   // Fetch price boundaries when selectedCategory, selectedBrands, or refreshPrice changes.
+  // Removed priceRange from dependency array to avoid infinite looping.
   useEffect(() => {
     const fetchPriceBounds = async () => {
       if (!selectedCategory) return;
@@ -105,12 +115,15 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
         if (res.data.values) {
           const newMin = Number(res.data.values.minPrice);
           const newMax = Number(res.data.values.maxPrice);
-          setPriceBounds([newMin, newMax]);
-          // Optionally adjust the current price range if it's out of bounds.
-          if (selectedBrands.length === 0 || priceRange[0] < newMin || priceRange[1] > newMax) {
-            const adjustedRange = [newMin, newMax];
-            setPriceRange(adjustedRange);
-            triggerFilter(selectedCategory, selectedBrands, adjustedRange);
+          // Update boundaries only if they have changed.
+          if (priceBounds[0] !== newMin || priceBounds[1] !== newMax) {
+            setPriceBounds([newMin, newMax]);
+            // Adjust priceRange only if current priceRange is outside new boundaries.
+            if (priceRange[0] < newMin || priceRange[1] > newMax) {
+              const adjustedRange = [Math.max(priceRange[0], newMin), Math.min(priceRange[1], newMax)];
+              setPriceRange(adjustedRange);
+              triggerFilter(selectedCategory, selectedBrands, adjustedRange);
+            }
           }
         }
       } catch (error) {
@@ -118,9 +131,11 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
       }
     };
     fetchPriceBounds();
-  }, [baseUrl, token, selectedCategory, selectedBrands, refreshPrice]);
+    // eslint-disable-next-line
+  }, [baseUrl, token, selectedCategory, refreshPrice]);
 
-  // New useEffect: Debounced fetching of brand values when priceRange changes.
+  // Debounced fetching of brand values when priceRange changes.
+  // eslint-disable-next-line
   useEffect(() => {
     const debounceHandler = setTimeout(() => {
       if (!selectedCategory) {
@@ -139,25 +154,15 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
         .catch((error) => console.error('Error fetching brands:', error));
     }, 500);
     return () => clearTimeout(debounceHandler);
-  }, [priceRange]); // This useEffect listens only to priceRange changes.
+  }, [priceRange, selectedCategory, baseUrl, token]);
 
-  // Debounced effect for triggering filter updates (if needed).
+  // Debounced effect for triggering filter updates.
   useEffect(() => {
     const handler = setTimeout(() => {
       triggerFilter(selectedCategory, selectedBrands, priceRange);
     }, 500);
     return () => clearTimeout(handler);
-  }, [selectedCategory, selectedBrands, priceRange]);
-
-  // Pass filter criteria to parent.
-  const triggerFilter = (cat, brandArray, priceArr) => {
-    const filtersObj = {};
-    if (cat) filtersObj.category = cat;
-    if (brandArray.length > 0) filtersObj.brand = brandArray.join(',');
-    filtersObj.minPrice = priceArr[0].toString();
-    filtersObj.maxPrice = priceArr[1].toString();
-    onFilter?.(filtersObj);
-  };
+  }, [selectedCategory, selectedBrands, priceRange, triggerFilter]);
 
   // Handlers for selections.
   const handleCategoryClick = (cat) => {
@@ -247,7 +252,10 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
                     onClick={() => handleCategoryClick(catObj._id)}
                   >
                     <Typography variant="body2">{catObj._id}</Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.8rem', color: '#1976d2' }}>
+                    <Typography
+                      variant="body2"
+                      sx={{ fontWeight: 'bold', fontSize: '0.8rem', color: '#1976d2' }}
+                    >
                       {catObj.count}
                     </Typography>
                   </Box>

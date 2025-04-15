@@ -16,7 +16,6 @@ import {
   TextField,
   Box,
   Paper,
-  Slide,
   FormControl,
   InputLabel,
   Select,
@@ -38,7 +37,7 @@ const AdminDashboard = () => {
   // State for filter usage.
   const [filters, setFilters] = useState({});
   const [showFilters, setShowFilters] = useState(false);
-  
+
   // State to force re-fetch of products.
   const [refreshCounter, setRefreshCounter] = useState(0);
   const [refreshPrice, setRefreshPrice] = useState(0);
@@ -61,10 +60,10 @@ const AdminDashboard = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingProduct, setDeletingProduct] = useState(null);
 
-    // New states for Category dropdown in the Add/Edit dialog.
-    const [availableCategories, setAvailableCategories] = useState([]);
-    const [isAddingNewCategory, setIsAddingNewCategory] = useState(false);
-    const [categoryRefresh, setCategoryRefresh] = useState(0);
+  // New states for Category dropdown in the Add/Edit dialog.
+  const [availableCategories, setAvailableCategories] = useState([]);
+  const [isAddingNewCategory, setIsAddingNewCategory] = useState(false);
+  const [categoryRefresh, setCategoryRefresh] = useState(0);
 
   const baseUrl = process.env.REACT_APP_API_BASE_URL || '';
 
@@ -98,9 +97,11 @@ const AdminDashboard = () => {
     fetchCategories();
   }, [baseUrl, token, categoryRefresh]);
 
-  // Called by ProductFilter when filters change.
+  // Prevent repeated updates by checking if new filters differ from current ones.
   const handleFilterUpdate = (newFilters) => {
-    setFilters(newFilters);
+    if (JSON.stringify(newFilters) !== JSON.stringify(filters)) {
+      setFilters(newFilters);
+    }
   };
 
   // Open the dialog for creating a new product.
@@ -172,16 +173,15 @@ const AdminDashboard = () => {
     formDataToSend.append('existingImages', JSON.stringify(existingUrls));
 
     try {
-      let response;
       if (editingProduct) {
-        response = await axios.put(`${baseUrl}/products`, formDataToSend, {
+        await axios.put(`${baseUrl}/products`, formDataToSend, {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'multipart/form-data'
           }
         });
       } else {
-        response = await axios.post(`${baseUrl}/products`, formDataToSend, {
+        await axios.post(`${baseUrl}/products`, formDataToSend, {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'multipart/form-data'
@@ -191,14 +191,10 @@ const AdminDashboard = () => {
       setDialogOpen(false);
       // Force InfiniteProductList re-mount.
       setRefreshCounter((prev) => prev + 1);
-      setRefreshPrice((prev)=>prev + 1);
+      setRefreshPrice((prev) => prev + 1);
       setCategoryRefresh((prev) => prev + 1);
       setIsAddingNewCategory(false);
       console.log('refreshed counter');
-      // if(isAddingNewCategory){
-      //   setCategoryRefresh((prev) => prev + 1);
-      //   console.log('new category');
-      // }
     } catch (error) {
       console.error('Error saving product:', error);
     } finally {
@@ -222,6 +218,7 @@ const AdminDashboard = () => {
   };
 
   // Open deletion confirmation modal.
+
   const handleOpenDeleteDialog = (product) => {
     setDeletingProduct(product);
     setDeleteDialogOpen(true);
@@ -244,7 +241,7 @@ const AdminDashboard = () => {
         // Force InfiniteProductList re-mount.
         setRefreshCounter((prev) => prev + 1);
         setCategoryRefresh((prev) => prev + 1);
-        setRefreshPrice((prev)=>prev + 1);
+        setRefreshPrice((prev) => prev + 1);
       } catch (error) {
         console.error('Error deleting product:', error);
       } finally {
@@ -316,7 +313,7 @@ const AdminDashboard = () => {
 
       {/* Main Content: Filter panel on the left, Table on the right */}
       <Box sx={{ position: 'relative' }}>
-        {/* Filter Panel: absolutely positioned on the left with fixed width */}
+        {/* Filter Panel: absolutely positioned on the left */}
         <Box sx={{ position: 'absolute', top: 0, left: 0, width: '300px', zIndex: 1, ml: '16px' }}>
           <ProductFilter
             baseUrl={baseUrl}
@@ -331,14 +328,13 @@ const AdminDashboard = () => {
           />
         </Box>
 
-        {/* Product Table: Shifts right when filter panel is open */}
+        {/* Product Table: shifts right when filter panel is open */}
         <Box sx={{ transition: 'margin-left 1s', marginLeft: showFilters ? '320px' : '0px' }}>
           <Paper sx={{ p: 2 }}>
             <InfiniteProductList
               key={`productlist-${refreshCounter}`}
               baseUrl={baseUrl}
               token={token}
-              limit={10}
               filters={filters || {}}
               renderProducts={renderTable}
             />
@@ -407,7 +403,6 @@ const AdminDashboard = () => {
               <FormHelperText>Type new category below</FormHelperText>
             )}
           </FormControl>
-          {/* If "Add New Category" is chosen, show a text field */}
           {isAddingNewCategory && (
             <TextField
               margin="dense"

@@ -1,5 +1,4 @@
-// src/pages/LandingPage.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Box, Typography, Fade } from '@mui/material';
 import { Link, useSearchParams } from 'react-router-dom';
 import InfiniteProductList from '../components/InfiniteProductList';
@@ -9,48 +8,31 @@ const LandingPage = () => {
   const baseUrl = process.env.REACT_APP_API_BASE_URL || '';
   const token = localStorage.getItem('token');
 
-  // Use searchParams to support shareable URLs.
+  // Build a stable filters object from URL parameters
   const [searchParams, setSearchParams] = useSearchParams();
-
-  // Initialize filters from URL query parameters.
-  const [filters, setFilters] = useState({
+  const filters = useMemo(() => ({
     category: searchParams.get('category') || '',
     brand: searchParams.get('brand') || '',
     minPrice: searchParams.get('minPrice') || '0',
-    maxPrice: searchParams.get('maxPrice') || '700',
-  });
+    maxPrice: searchParams.get('maxPrice') || '700'
+  }), [searchParams]);
 
-  // State controlling whether the filter panel is shown.
+  // Controls the visibility of the filter panel.
   const [showFilters, setShowFilters] = useState(false);
 
-  useEffect(() => {
-    setFilters({
-      category: searchParams.get('category') || '',
-      brand: searchParams.get('brand') || '',
-      minPrice: searchParams.get('minPrice') || '0',
-      maxPrice: searchParams.get('maxPrice') || '700',
-    });
-  }, [searchParams]);
-
-  // When filters change, update state and URL parameters.
+  // When filters change, update URL parameters.
   const handleFilter = (newFilters) => {
-    setFilters(newFilters);
-    const params = {};
-    if (newFilters.category) params.category = newFilters.category;
-    if (newFilters.brand) params.brand = newFilters.brand;
-    if (newFilters.minPrice) params.minPrice = newFilters.minPrice;
-    if (newFilters.maxPrice) params.maxPrice = newFilters.maxPrice;
-    setSearchParams(params);
+    setSearchParams(newFilters);
   };
 
-  // Render products using a CSS Grid layout with fixed column width.
+  // Render products using a CSS Grid layout.
   const renderProducts = (products, lastProductRef) => (
     <Box
       sx={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fill, 250px)', // Fixed 250px columns.
         gap: 2,
-        justifyContent: 'center',  // Centers the grid when few columns are present.
+        justifyContent: 'center',  // Center the grid when few columns exist.
         p: 2,
       }}
     >
@@ -93,12 +75,8 @@ const LandingPage = () => {
   );
 
   return (
-    // The outer Box is relatively positioned.
     <Box sx={{ position: 'relative', mt: 6 }}>
-      {/* 
-        Filter Panel – absolutely positioned on the left with a fixed width,
-        with a little margin for spacing.
-      */}
+      {/* Filter Panel – absolutely positioned on the left */}
       <Box sx={{ position: 'absolute', top: 0, left: 0, width: '300px', zIndex: 1, ml: '16px' }}>
         <ProductFilter
           baseUrl={baseUrl}
@@ -110,10 +88,7 @@ const LandingPage = () => {
         />
       </Box>
 
-      {/* 
-        Products area – its left margin transitions over 1s.
-        When filters are visible, margin-left is increased to '320px' (300px panel width + 20px gap).
-      */}
+      {/* Products Area – its left margin transitions when filters are visible */}
       <Box sx={{ transition: 'margin-left 1s', marginLeft: showFilters ? '320px' : '0px' }}>
         <Typography variant="subtitle1" gutterBottom align="center" sx={{ fontWeight: 'bold', mr: 1 }}>
           Featured Products

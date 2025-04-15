@@ -1,5 +1,5 @@
 // src/contexts/CartContext.js
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
 export const CartContext = createContext();
@@ -12,7 +12,7 @@ export const CartProvider = ({ children }) => {
   const [cartCount, setCartCount] = useState(0);
 
   // Function to fetch the cart based on the current token.
-  const fetchCart = async () => {
+  const fetchCart = useCallback(async () => {
     try {
       if (token) {
         const response = await axios.get(`${baseUrl}/cart`, {
@@ -30,7 +30,7 @@ export const CartProvider = ({ children }) => {
     } catch (error) {
       console.error("Error fetching cart in context:", error);
     }
-  };
+  }, [token,  baseUrl]);
 
   // Optional: Listen for changes to the "token" in localStorage
   // (Note: localStorage events fire in other tabs; if login happens in the same tab, you can call setToken explicitly.)
@@ -47,7 +47,7 @@ export const CartProvider = ({ children }) => {
   // Re-fetch cart whenever the token changes.
   useEffect(() => {
     fetchCart();
-  }, [token]);
+  }, [token, fetchCart]);
 
   return (
     <CartContext.Provider value={{ cart, cartCount, refreshCart: fetchCart, setCart, setCartCount, setToken }}>
