@@ -6,6 +6,7 @@
 [dev]
   functions = "netlify-functions/functions"
   publish = "client/build"
+  targetPort = 3000
 
 [functions]
   directory = "netlify-functions/functions"
