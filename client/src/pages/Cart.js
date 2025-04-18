@@ -119,10 +119,11 @@ const Cart = () => {
             };
 
             // Call your createCheckoutSession endpoint
-            const response = await axios.post(`${baseUrl}/createCheckoutSession`, {
+            const baseFrontendUrl = process.env.ENVIRONMENT === 'dev' ? 'http://localhost:3000' : 'https://mara-cosmetics.netlify.app';
+            const response = await axios.post(`${baseFrontendUrl}/createCheckoutSession`, {
                 lineItems,
-                successUrl: 'http://localhost:3000/checkout-successful',
-                cancelUrl: 'http://localhost:3000/cart',
+                successUrl: `${baseFrontendUrl}/checkout-successful`,
+                cancelUrl: `${baseFrontendUrl}/cart`,
                 orderData,
             }, {
                 headers: { Authorization: `Bearer ${token}` }
