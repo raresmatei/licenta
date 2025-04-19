@@ -59,7 +59,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
   const [priceRange, setPriceRange] = useState(
     initialFilters.minPrice && initialFilters.maxPrice
       ? [Number(initialFilters.minPrice), Number(initialFilters.maxPrice)]
-      : [0, 700]
+      : [0, 10000]
   );
   // State for the fetched price boundaries.
   const [priceBounds, setPriceBounds] = useState([0, 700]);
@@ -191,21 +191,42 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
   );
 
   return (
-    <Box sx={{ width: '300px' }}>
+    <Box
+      sx={{
+        width: showFilters ? '300px' : '200px',
+        background: 'white',
+        // borderRight
+        // mr: 1,
+        // mt: 1
+      }}
+    >
       {/* Always-visible toggle line */}
       <Box
-        sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', mb: 1 }}
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          cursor: 'pointer',
+          mb: 1,
+          border: showFilters ? 'none' : '2px solid',
+          borderColor: 'black'
+        }}
         onClick={() => setShowFilters(!showFilters)}
       >
-        <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mr: 1 }}>
-          {showFilters ? 'ASCUNDE FILTRE' : 'ARATA FILTRE'}
+        <Typography 
+          variant="subtitle1"
+          sx={{ 
+            fontWeight: 'bold',
+            pl: 2,
+          }}
+        >
+          {showFilters ? 'HIDE FILTERS' : 'SHOW FILTERS'}
         </Typography>
         {showFilters ? <ArrowLeft /> : <ArrowRight />}
       </Box>
 
       {/* Slide transition for the main filter panel */}
       <Slide in={showFilters} direction="right" mountOnEnter unmountOnExit timeout={1000}>
-        <Paper ref={ref} sx={{ p: 2 }}>
+        <Box ref={ref} sx={{ p: 2 }}>
           {/* CATEGORY SECTION */}
           <Box sx={{ mb: 1 }}>
             <Box
@@ -227,7 +248,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
               <Box
                 sx={{
                   mt: 1,
-                  maxHeight: '120px',
+                  maxHeight: '200px',
                   overflowY: 'auto',
                   '&::-webkit-scrollbar': { width: '6px' },
                   '&::-webkit-scrollbar-thumb': {
@@ -336,7 +357,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
                 <Box
                   sx={{
                     mt: 1,
-                    maxHeight: '120px',
+                    maxHeight: '360px',
                     overflowY: 'auto',
                     '&::-webkit-scrollbar': { width: '6px' },
                     '&::-webkit-scrollbar-thumb': {
@@ -379,7 +400,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
             </Box>
           )}
           {/* No explicit "Apply" button – filter updates occur automatically */}
-        </Paper>
+        </Box>
       </Slide>
     </Box>
   );
