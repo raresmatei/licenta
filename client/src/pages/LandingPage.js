@@ -16,7 +16,7 @@ const LandingPage = () => {
       category: searchParams.get('category') || '',
       brand: searchParams.get('brand') || '',
       minPrice: searchParams.get('minPrice') || '0',
-      maxPrice: searchParams.get('maxPrice') || '700',
+      maxPrice: searchParams.get('maxPrice') || '10000',
     }),
     [searchParams]
   );
