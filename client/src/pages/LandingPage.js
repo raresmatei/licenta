@@ -23,8 +23,8 @@ const LandingPage = () => {
 
   // Toggle filter panel
   const [showFilters, setShowFilters] = useState(false);
-  const collapsedWidth = 120; // Width for toggle only
-  const sidebarWidth = 300;   // Full filter width
+  // const collapsedWidth = 120; // Width for toggle only
+  // const sidebarWidth = 300;   // Full filter width
 
   // Sync filter changes to URL
   const handleFilter = (newFilters) => setSearchParams(newFilters);
@@ -93,7 +93,7 @@ const LandingPage = () => {
         {/* Sidebar with animated width and sticky behavior */}
         <Box
           sx={{
-            width: showFilters ? sidebarWidth : collapsedWidth,
+            // width: showFilters ? sidebarWidth : collapsedWidth,
             transition: 'width 0.5s ease',
             flexShrink: 0,
             position: 'sticky',

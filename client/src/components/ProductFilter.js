@@ -7,7 +7,6 @@ import {
   Checkbox,
   Slider,
   Typography,
-  Paper,
   TextField,
   InputAdornment,
   Collapse,
