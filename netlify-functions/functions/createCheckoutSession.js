@@ -88,7 +88,7 @@ exports.handler = withCors(async (event) => {
   return {
     statusCode: 200,
     body: JSON.stringify({
-      url: /.url,
+      url: session.url,
       message: 'Checkout session created; order saved as pending.',
     }),
   };
