@@ -114,15 +114,19 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
         if (res.data.values) {
           const newMin = Number(res.data.values.minPrice);
           const newMax = Number(res.data.values.maxPrice);
+          console.log('min, max: ', newMin, newMax);
           // Update boundaries only if they have changed.
           if (priceBounds[0] !== newMin || priceBounds[1] !== newMax) {
             setPriceBounds([newMin, newMax]);
+            // const adjustedRange = [Math.max(priceRange[0], newMin), Math.min(priceRange[1], newMax)];
+              setPriceRange([newMin, newMax]);
+              triggerFilter(selectedCategory, selectedBrands, [newMin, newMax]);
             // Adjust priceRange only if current priceRange is outside new boundaries.
-            if (priceRange[0] < newMin || priceRange[1] > newMax) {
-              const adjustedRange = [Math.max(priceRange[0], newMin), Math.min(priceRange[1], newMax)];
-              setPriceRange(adjustedRange);
-              triggerFilter(selectedCategory, selectedBrands, adjustedRange);
-            }
+            // if (priceRange[0] < newMin || priceRange[1] > newMax) {
+            //   const adjustedRange = [Math.max(priceRange[0], newMin), Math.min(priceRange[1], newMax)];
+            //   setPriceRange(adjustedRange);
+            //   triggerFilter(selectedCategory, selectedBrands, adjustedRange);
+            // }
           }
         }
       } catch (error) {

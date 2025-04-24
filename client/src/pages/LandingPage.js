@@ -71,7 +71,7 @@ const LandingPage = () => {
                   <Typography variant="subtitle2">{product.category}</Typography>
                   <Typography variant="subtitle2">{product.brand}</Typography>
                   <Typography variant="body1" color="text.secondary">
-                    ${parseFloat(product.price).toFixed(2)}
+                    {parseFloat(product.price).toFixed(2)} lei
                   </Typography>
                 </Box>
               </Box>
@@ -100,10 +100,12 @@ const LandingPage = () => {
             top: 0,
             height: 'calc(100vh + 200px)',
             borderRight: showFilters ? '1px solid' : 'none',
+            borderTop: showFilters ? '1px solid' : 'none',
             borderColor: 'divider',
             // overflow: 'hidden',
             // background: showFilters ? 'transparent' : 'white',
-            width: showFilters ? 'auto': 0
+            width: showFilters ? 'auto': 0,
+            zIndex: 1000
           }}
         >
           <ProductFilter

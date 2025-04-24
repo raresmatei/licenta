@@ -92,7 +92,7 @@ const ProductDetail = () => {
                         {product.name}
                     </Typography>
                     <Typography variant="h6" color="text.secondary">
-                        ${product.price}
+                        {product.price} lei
                     </Typography>
                     <Typography variant="body1" sx={{ mt: 2 }}>
                         {product.description}
