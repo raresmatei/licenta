@@ -12,10 +12,15 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 // A helper function to send a confirmation email asynchronously.
 async function sendConfirmationEmail(order) {
+    console.log('preparing email...');
+    console.log('key public : ', process.env.MAILJET_PUBLIC_API_KEY);
+    console.log('private key: ', process.env.MAILJET_PRIVATE_API_KEY);
     const mailjet = new Mailjet({
         apiKey: process.env.MAILJET_PUBLIC_API_KEY,
         apiSecret: process.env.MAILJET_PRIVATE_API_KEY
     });
+
+    console.log('mailjet instantiated');
 
     const request = mailjet
         .post("send", { 'version': 'v3.1' })
@@ -36,7 +41,7 @@ async function sendConfirmationEmail(order) {
                     "TextPart": "Dear customer, thank you for your order!",
                     "HTMLPart": `<h1>Thank You for Your Order!</h1>
                                 <p>Your order with ID <strong>${order._id}</strong> has been successfully placed.</p>
-                                <p>Total Amount: $${order.totalAmount.toFixed(2)}</p>
+                                <p>Total Amount: ${order.totalAmount.toFixed(2)} lei</p>
                                 <p>We will ship your order to ${order.shippingAddress.addressLine1}, ${order.shippingAddress.city} shortly.</p>`
                 }
             ]
@@ -152,7 +157,7 @@ exports.handler = withCors(async (event, context) => {
     }
 
     // Send confirmation email asynchronously (fire and forget)
-    sendConfirmationEmail(newOrder).catch(err =>
+    await sendConfirmationEmail(newOrder).catch(err =>
         console.error('Error sending confirmation email:', err)
     );
 
