@@ -1,94 +1,73 @@
+/* netlify/functions/createCheckoutSession.js */
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const withCors = require('../withCors');
 const connectToDatabase = require('../db');
 const Order = require('../models/Order');
-const Cart = require('../models/Cart');  // Make sure Cart model is imported
+const Cart = require('../models/Cart');
 const jwt = require('jsonwebtoken');
 const Mailjet = require('node-mailjet');
 
-require('dotenv').config();
-
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// A helper function to send a confirmation email asynchronously.
+/** ------------------------------------------------------------------ *
+ * Send Mailjet confirmation e-mail and return the API response body.
+ * ------------------------------------------------------------------ */
 async function sendConfirmationEmail(order) {
-    console.log('preparing email...');
-    console.log('key public : ', process.env.MAILJET_PUBLIC_API_KEY);
-    console.log('private key: ', process.env.MAILJET_PRIVATE_API_KEY);
+    console.log('Preparing e-mail for order', order._id);
+
     const mailjet = new Mailjet({
         apiKey: process.env.MAILJET_PUBLIC_API_KEY,
-        apiSecret: process.env.MAILJET_PRIVATE_API_KEY
+        apiSecret: process.env.MAILJET_PRIVATE_API_KEY,
     });
 
-    console.log('mailjet instantiated');
+    const payload = {
+        Messages: [
+            {
+                From: { Email: 'maracosmetics12@gmail.com', Name: 'Mara Cosmetics' },
+                To: [{ Email: order.userEmail, Name: 'Customer' }],
+                Subject: 'Order Confirmation',
+                TextPart: 'Dear customer, thank you for your order!',
+                HTMLPart: `
+          <h1>Thank you for your order!</h1>
+          <p>Your order ID: <strong>${order._id}</strong></p>
+          <p>Total: ${order.totalAmount.toFixed(2)} lei</p>
+          <p>Shipping to: ${order.shippingAddress.addressLine1}, ${order.shippingAddress.city}</p>
+        `,
+            },
+        ],
+    };
 
-    const request = mailjet
-        .post("send", { 'version': 'v3.1' })
-        .request({
-            "Messages": [
-                {
-                    "From": {
-                        "Email": "maracosmetics12@gmail.com",
-                        "Name": "Mara Cosmetics"
-                    },
-                    "To": [
-                        {
-                            "Email": "rares.matei171@gmail.com",
-                            "Name": "Rares"
-                        }
-                    ],
-                    "Subject": 'Order Confirmation',
-                    "TextPart": "Dear customer, thank you for your order!",
-                    "HTMLPart": `<h1>Thank You for Your Order!</h1>
-                                <p>Your order with ID <strong>${order._id}</strong> has been successfully placed.</p>
-                                <p>Total Amount: ${order.totalAmount.toFixed(2)} lei</p>
-                                <p>We will ship your order to ${order.shippingAddress.addressLine1}, ${order.shippingAddress.city} shortly.</p>`
-                }
-            ]
-        });
-    request
-        .then((result) => {
-            console.log("Email sent. Mailjet response:", result.body);
-        })
-        .catch((err) => {
-            console.log("Mailjet error status:", err.statusCode);
-        });
+    try {
+        const res = await mailjet.post('send', { version: 'v3.1' }).request(payload);
+        console.log('Mailjet response status', res.response.status);
+        return res.body;
+    } catch (err) {
+        console.error('Mailjet error', err.statusCode, err.message, err.response?.body);
+        throw err; // propagate so the function fails (optional: handle gracefully)
+    }
 }
 
-exports.handler = withCors(async (event, context) => {
+/** ------------------------------------------------------------------ *
+ * Serverless function handler
+ * ------------------------------------------------------------------ */
+exports.handler = withCors(async (event) => {
     if (event.httpMethod !== 'POST') {
-        return {
-            statusCode: 405,
-            body: JSON.stringify({ error: 'Method Not Allowed' }),
-        };
+        return { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
     }
 
     let data;
     try {
         data = JSON.parse(event.body);
-    } catch (err) {
-        return {
-            statusCode: 400,
-            body: JSON.stringify({ error: 'Invalid JSON in request body' }),
-        };
+    } catch {
+        return { statusCode: 400, body: JSON.stringify({ error: 'Invalid JSON in request body' }) };
     }
 
-    // Expect the following fields in the request:
-    // - lineItems: array for Stripe
-    // - successUrl, cancelUrl: URLs for redirection
-    // - orderData: an object containing:
-    //      { products, totalAmount, shippingAddress, paymentInfo, userEmail }
     const { lineItems, successUrl, cancelUrl, orderData } = data;
     if (!lineItems || !successUrl || !cancelUrl || !orderData) {
-        return {
-            statusCode: 400,
-            body: JSON.stringify({
-                error: 'Missing required fields: lineItems, successUrl, cancelUrl, or orderData',
-            }),
-        };
+        return { statusCode: 400, body: JSON.stringify({ error: 'Missing required fields' }) };
     }
 
-    // Create a Stripe Checkout Session.
+    /* 1. Create Stripe Checkout session */
     let session;
     try {
         session = await stripe.checkout.sessions.create({
@@ -99,39 +78,29 @@ exports.handler = withCors(async (event, context) => {
             cancel_url: cancelUrl,
         });
     } catch (err) {
-        console.error('Error creating Stripe Checkout Session:', err);
-        return {
-            statusCode: 500,
-            body: JSON.stringify({ error: 'Internal Server Error' }),
-        };
+        console.error('Stripe session error', err);
+        return { statusCode: 500, body: JSON.stringify({ error: 'Stripe error' }) };
     }
 
-    // Ensure database connection is established.
+    /* 2. Connect to MongoDB */
     try {
         await connectToDatabase();
-    } catch (dbError) {
-        console.error('Database connection error:', dbError);
-        return {
-            statusCode: 500,
-            body: JSON.stringify({ error: 'Database connection error' }),
-        };
+    } catch (err) {
+        console.error('DB connection error', err);
+        return { statusCode: 500, body: JSON.stringify({ error: 'Database connection error' }) };
     }
 
-    // Verify the JWT token to get the user ID.
-    const authHeader = event.headers.authorization || event.headers.Authorization;
+    /* 3. Decode JWT */
+    const authHeader = event.headers.authorization || event.headers.Authorization || '';
     const tokenAuth = authHeader.split(' ')[1];
     let decoded;
     try {
         decoded = jwt.verify(tokenAuth, JWT_SECRET);
-    } catch (err) {
-        return {
-            statusCode: 401,
-            body: JSON.stringify({ error: 'Invalid token' }),
-        };
+    } catch {
+        return { statusCode: 401, body: JSON.stringify({ error: 'Invalid token' }) };
     }
 
-    // Create a new Order object and store the order in the database.
-    // Here, we use the session.id as a placeholder paymentId.
+    /* 4. Save order */
     const newOrder = new Order({
         userId: decoded.userId,
         userEmail: orderData.userEmail,
@@ -139,45 +108,34 @@ exports.handler = withCors(async (event, context) => {
         totalAmount: orderData.totalAmount,
         shippingAddress: orderData.shippingAddress,
         paymentInfo: {
-            paymentId: session.id,  // session id as the payment identifier
+            paymentId: session.id,
             paymentMethod: orderData.paymentInfo.paymentMethod,
-        }
+        },
     });
-
-    console.log('order: ', newOrder);
 
     try {
         await newOrder.save();
-    } catch (saveError) {
-        console.error('Error saving order:', saveError);
-        return {
-            statusCode: 500,
-            body: JSON.stringify({ error: 'Order saving failed' }),
-        };
+    } catch (err) {
+        console.error('Order save error', err);
+        return { statusCode: 500, body: JSON.stringify({ error: 'Order save failed' }) };
     }
 
-    // Send confirmation email asynchronously (fire and forget)
-    await sendConfirmationEmail(newOrder).catch(err =>
-        console.error('Error sending confirmation email:', err)
-    );
+    /* 5. Send e-mail (await!) */
+    await sendConfirmationEmail(newOrder);
 
-    // Now, remove the ordered cart items.
+    /* 6. Clear cart */
     try {
-        // Find the user's cart and clear items.
-        await Cart.findOneAndUpdate(
-            { userId: decoded.userId },
-            { items: [], itemCount: 0 }
-        );
-        console.log('User cart cleared after order.');
-    } catch (clearError) {
-        console.error('Error clearing cart:', clearError);
+        await Cart.findOneAndUpdate({ userId: decoded.userId }, { items: [], itemCount: 0 });
+    } catch (err) {
+        console.error('Cart clear error', err);
     }
 
+    /* 7. Success response */
     return {
         statusCode: 200,
         body: JSON.stringify({
             url: session.url,
-            message: 'Checkout session created; order is saved and cart cleared.'
+            message: 'Checkout session created; order saved; cart cleared.',
         }),
     };
 });
