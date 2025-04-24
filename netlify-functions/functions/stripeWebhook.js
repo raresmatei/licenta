@@ -1,61 +1,81 @@
 /* netlify/functions/stripeWebhook.js */
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+
+/**
+ * Stripe Webhook handler – production‑ready
+ * -----------------------------------------
+ * Handles `checkout.session.completed` events, verifies the signature, updates
+ * the corresponding Order to `paid`, clears the user's Cart, and sends a
+ * confirmation e‑mail via Mailjet.
+ */
+
+const stripe   = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const connectToDatabase = require('../db');
-const Order = require('../models/Order');
-const Cart  = require('../models/Cart');
-const Mailjet = require('node-mailjet');
+const Order    = require('../models/Order');
+const Cart     = require('../models/Cart');
+const Mailjet  = require('node-mailjet');
 
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET; // whsec_...
 
-/* helper ----------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+/* Helper: send confirmation e‑mail                                           */
+/* -------------------------------------------------------------------------- */
 async function sendConfirmationEmail(order) {
   const mailjet = new Mailjet({
-    apiKey: process.env.MAILJET_PUBLIC_API_KEY,
+    apiKey:   process.env.MAILJET_PUBLIC_API_KEY,
     apiSecret: process.env.MAILJET_PRIVATE_API_KEY,
   });
 
-  await mailjet
-    .post('send', { version: 'v3.1' })
-    .request({
-      Messages: [
-        {
-          From: { Email: 'maracosmetics12@gmail.com', Name: 'Mara Cosmetics' },
-          To:   [{ Email: order.userEmail, Name: 'Customer' }],
-          Subject: 'Order Confirmation',
-          TextPart: 'Dear customer, thank you for your order!',
-          HTMLPart: `
-            <h1>Thank you for your order!</h1>
-            <p>Order ID: <strong>${order._id}</strong></p>
-            <p>Total: ${order.totalAmount.toFixed(2)} lei</p>
-            <p>Shipping to: ${order.shippingAddress.addressLine1}, ${order.shippingAddress.city}</p>`,
-        },
-      ],
-    });
+  const payload = {
+    Messages: [
+      {
+        From: { Email: 'maracosmetics12@gmail.com', Name: 'Mara Cosmetics' },
+        To:   [{ Email: order.userEmail, Name: 'Customer' }],
+        Subject: 'Order Confirmation',
+        TextPart: 'Thank you for your purchase!',
+        HTMLPart: `
+          <h1>Thank you for your order!</h1>
+          <p>Order ID: <strong>${order._id}</strong></p>
+          <p>Total: ${order.totalAmount.toFixed(2)} lei</p>
+          <p>Shipping to: ${order.shippingAddress.addressLine1}, ${order.shippingAddress.city}</p>
+        `,
+      },
+    ],
+  };
+
+  const res = await mailjet.post('send', { version: 'v3.1' }).request(payload);
+  console.log('[Mailjet] sent – status', res.response.status);
 }
 
-/* Netlify must receive the raw body to verify Stripe’s signature */
+/* -------------------------------------------------------------------------- */
+/* Netlify Function entry point                                              */
+/* -------------------------------------------------------------------------- */
 exports.handler = async (event) => {
-  const sig  = event.headers['stripe-signature'];
-  const body = event.isBase64Encoded
+  // Stripe sends the signature in lowercase header on Netlify
+  const signature = event.headers['stripe-signature'];
+
+  // Re‑create the exact raw body Stripe signed
+  const rawBody = event.isBase64Encoded
     ? Buffer.from(event.body, 'base64')
-    : event.body;           // raw string
+    : Buffer.from(event.body, 'utf8');
 
   let stripeEvent;
   try {
-    stripeEvent = stripe.webhooks.constructEvent(body, sig, endpointSecret);
+    stripeEvent = stripe.webhooks.constructEvent(rawBody, signature, endpointSecret);
   } catch (err) {
-    console.error('Webhook signature verification failed.', err.message);
+    console.error('[Stripe] Signature verification failed', err.message);
     return { statusCode: 400, body: `Webhook Error: ${err.message}` };
   }
 
-  /* Handle the checkout-success event */
+  /* ------------------------------------------------------------------------ */
+  /* Handle event types                                                      */
+  /* ------------------------------------------------------------------------ */
   if (stripeEvent.type === 'checkout.session.completed') {
-    const session = stripeEvent.data.object;
+    const session = stripeEvent.data.object; // Checkout Session
 
     try {
       await connectToDatabase();
 
-      // 1. mark order as paid
+      // 1. Mark order as paid
       const order = await Order.findOneAndUpdate(
         { 'paymentInfo.paymentId': session.id },
         {
@@ -66,20 +86,24 @@ exports.handler = async (event) => {
       );
 
       if (!order) {
-        console.warn('Order not found for session', session.id);
-        return { statusCode: 200, body: 'ok' };
+        console.warn('[StripeWebhook] Order not found for session', session.id);
+        return { statusCode: 200, body: 'no‑match' }; // Acknowledge anyway
       }
 
-      // 2. clear cart
+      // 2. Clear cart (best‑effort)
       await Cart.findOneAndUpdate({ userId: order.userId }, { items: [], itemCount: 0 });
 
-      // 3. send e-mail
+      // 3. Send confirmation e‑mail – fail‑loud so we see errors in logs
       await sendConfirmationEmail(order);
+
+      console.log('[StripeWebhook] Order', order._id, 'marked paid & e‑mail sent');
     } catch (err) {
-      console.error('Error processing checkout.session.completed', err);
+      console.error('[StripeWebhook] Handler error', err);
+      // Let Stripe retry by returning 500 – unless you store retries elsewhere
       return { statusCode: 500, body: 'Webhook handler failure' };
     }
   }
 
+  // Return a 200 to tell Stripe the event was received successfully
   return { statusCode: 200, body: 'ok' };
 };
