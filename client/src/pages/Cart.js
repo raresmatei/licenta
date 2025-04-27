@@ -1,298 +1,206 @@
-// src/pages/Cart.js
-import React, { useState, useEffect, useContext, useCallback } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
-    Container,
-    Typography,
-    Table,
-    TableHead,
-    TableBody,
-    TableRow,
-    TableCell,
-    IconButton,
-    Button,
-    Box,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions
+  Container,
+  Typography,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  IconButton,
+  Button,
+  Box,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material';
-import axios from 'axios';
-import { Link } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CheckoutForm from '../components/CheckoutForm';
 import { CartContext } from '../context/CartContext';
-import { jwtDecode } from 'jwt-decode'; // note the correct import: `jwt-decode` is default
+import axios from 'axios';
+import { jwtDecode } from 'jwt-decode';
 
 const Cart = () => {
-    const [confirmDelete, setConfirmDelete] = useState({ open: false, item: null });
-    const [cartProducts, setCardProducts] = useState([]);
-    const token = localStorage.getItem('token'); // check token to see if logged in
-    const baseUrl = process.env.REACT_APP_API_BASE_URL || '';
-    const [checkoutOpen, setCheckoutOpen] = useState(false);
-    const { cart, refreshCart } = useContext(CartContext);
+  const [confirmDelete, setConfirmDelete] = useState({ open: false, item: null });
+  const [loginPromptOpen, setLoginPromptOpen] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [cartProducts, setCartProducts] = useState([]);
 
-    const fetchProduct = useCallback(async (id) => {
-        try {
-            const response = await axios.get(`${baseUrl}/products/?id=${id}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            return response.data.products[0];
-        } catch (error) {
-            console.error('Error fetching product details:', error);
-        }
-    }, [baseUrl, token]);
+  const { cart = { items: [], itemCount: 0 }, updateQuantity, refreshCart, token } = useContext(CartContext);
+  const items = cart.items || [];
+  const baseUrl = process.env.REACT_APP_API_BASE_URL || '';
 
-    const fetchCartProducts = useCallback(async () => {
-        if (!cart || cart.items.length === 0) return;
-        const prods = await Promise.all(
-            cart.items.map(async (item) => ({
-                ...item,
-                product: await fetchProduct(item.product)
-            }))
-        );
-        console.log('prods: ', prods)
-        setCardProducts(prods);
-    }, [fetchProduct, cart]);
-
-    const updateQuantity = async (productId, newQuantity) => {
-        try {
-            await axios.patch(
-                `${baseUrl}/cart`,
-                { productId, quantity: newQuantity },
-                { headers: { Authorization: `Bearer ${token}` }, withCredentials: true }
-            );
-            // After an update, refresh the cart in context
-            await refreshCart();
-        } catch (error) {
-            console.error('Error updating quantity:', error);
-        }
+  // Load product details
+  useEffect(() => {
+    const loadProducts = async () => {
+      if (!items.length) return setCartProducts([]);
+      const prods = await Promise.all(
+        items.map(async (item) => {
+          const res = await axios.get(
+            `${baseUrl}/products/?id=${item.productId || item.product}`,
+            { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+          );
+          const product = res.data.products[0];
+          return product ? { ...item, product } : null;
+        })
+      );
+      setCartProducts(prods.filter(Boolean));
     };
+    loadProducts();
+  }, [items, baseUrl, token]);
 
-    const handleIncrement = (item) => {
-        updateQuantity(item.product._id, item.quantity + 1);
-    };
+  const handleIncrement = (item) => updateQuantity(item.product._id, item.quantity + 1);
+  const handleDecrement = (item) => updateQuantity(item.product._id, item.quantity - 1);
+  const handleDelete = (item) => updateQuantity(item.product._id, 0);
 
-    const handleDecrement = (item) => {
-        const newQuantity = item.quantity - 1;
-        updateQuantity(item.product._id, newQuantity);
-    };
+  const totalPrice = cartProducts.reduce(
+    (sum, i) => sum + i.product.price * i.quantity,
+    0
+  );
 
-    // Checkout callback
-    const handleCheckout = async (checkoutData) => {
-        try {
-            // Decode the token to get user email
-            const decodedToken = jwtDecode(token);
-            const userEmail = decodedToken.email;
+  // Restore checkout logic
+  const handleCheckout = async (checkoutData) => {
+    try {
+      const decoded = jwtDecode(token);
+      const userEmail = decoded.email;
 
-            // Build line items and compute the total amount
-            const lineItemsAndTotals = await Promise.all(
-                cart.items.map(async (item) => {
-                    const product = await fetchProduct(item.product);
-                    return {
-                        lineItem: {
-                            price_data: {
-                                currency: 'ron',
-                                product_data: { name: product.name },
-                                unit_amount: Math.round(product.price * 100),
-                            },
-                            quantity: item.quantity,
-                        },
-                        productPrice: product.price,
-                        quantity: item.quantity,
-                    };
-                })
-            );
-            const lineItems = lineItemsAndTotals.map(x => x.lineItem);
-            const totalAmount = lineItemsAndTotals.reduce((acc, cur) => acc + cur.productPrice * cur.quantity, 0);
+      const lineItems = cartProducts.map(item => ({
+        price_data: {
+          currency: 'ron',
+          product_data: { name: item.product.name },
+          unit_amount: Math.round(item.product.price * 100)
+        },
+        quantity: item.quantity
+      }));
 
-            // Build the orderData object
-            const orderData = {
-                products: cart.items,
-                totalAmount,
-                shippingAddress: checkoutData.shippingAddress,
-                paymentInfo: {
-                    paymentMethod: 'card',
-                },
-                userEmail,
-            };
+      const orderData = {
+        products: items,
+        totalAmount: totalPrice,
+        shippingAddress: checkoutData.shippingAddress,
+        paymentInfo: { paymentMethod: 'card' },
+        userEmail
+      };
 
-            // Call your createCheckoutSession endpoint
-            const baseFrontendUrl = process.env.ENVIRONMENT === 'dev' ? 'http://localhost:3000' : 'https://mara-cosmetics.netlify.app';
-            const response = await axios.post(`${baseUrl}/createCheckoutSession`, {
-                lineItems,
-                successUrl: `${baseFrontendUrl}/checkout-successful`,
-                cancelUrl: `${baseFrontendUrl}/cart`,
-                orderData,
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+      const frontendBase = process.env.REACT_APP_ENVIRONMENT === 'dev'
+        ? 'http://localhost:3000'
+        : 'https://mara-cosmetics.netlify.app';
+    
+      const response = await axios.post(
+        `${baseUrl}/createCheckoutSession`,
+        {
+          lineItems,
+          successUrl: `${frontendBase}/checkout-successful`,
+          cancelUrl: `${frontendBase}/cart`,
+          orderData
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-            window.location.href = response.data.url;
-        } catch (error) {
-            console.error('Error creating checkout session:', error);
-            alert('Payment failed, please try again.');
-        }
-    };
+      window.location.href = response.data.url;
+    } catch (err) {
+      console.error('Error creating checkout session:', err);
+      alert('Payment initiation failed. Please try again.');
+    }
+  };
 
-    useEffect(() => {
-        fetchCartProducts();
-    }, [fetchCartProducts]); // cart changes whenever refreshCart is called
-
-    // If there's no user token, show the "logged out" view
+  const handleCheckoutClick = () => {
     if (!token) {
-        return (
-            <Container sx={
-                {
-                    mt: 4,
-                    marginTop: '100px'
-                }
-            }
-            >
-                <Box
-                    sx={{
-                        display: 'flex',
-                        flexDirection: 'row',
-                        justifyContent: 'space-between',
-                        alignItems: 'flex-start',
-                        paddingLeft: '96px',
-                        paddingRight: '96px',
-                    }}
-                >
-                    {/* Left Column with Diagonal Text */}
-                    <Box
-                        sx={{
-                            flex: 1,
-                            textAlign: 'left',
-                            transform: 'rotate(-5deg)',
-                            paddingRight: 2
-                        }}
-                    >
-                        <Typography variant="h3" color="error" sx={{ mb: 1 }}>
-                            Ups!
-                        </Typography>
-                        <Typography variant="h5" sx={{ mb: 1 }}>
-                            Cosul tau este gol
-                        </Typography>
-                    </Box>
-                    {/* Right Column */}
-                    <Box sx={{ flex: 1, textAlign: 'right', paddingLeft: 2 }}>
-                        <Typography variant="h6" sx={{ mb: 1 }}>
-                            Pentru a accesa cosul tau,
-                        </Typography>
-                        <Typography variant="body1" sx={{ mb: 1, marginBottom: '24px' }}>
-                            te rugam sa te autentifici.
-                        </Typography>
-                        <Button variant="contained" component={Link} to="/login">
-                            Intra in cont
-                        </Button>
-                    </Box>
-                </Box>
-            </Container>
-        );
+      setLoginPromptOpen(true);
+    } else {
+      setCheckoutOpen(true);
     }
+  };
 
-    if (!cart) {
-        return (
-            <Container sx={{ mt: 4 }}>
-                <Typography variant="h6">Loading cart...</Typography>
-            </Container>
-        );
-    }
+  return (
+    <Container sx={{ mt: 4 }}>
+      <Typography variant="h4" gutterBottom>Your Shopping Cart</Typography>
+      <Typography variant="h6" sx={{ mb: 2 }}>Total Items: {cart.itemCount}</Typography>
 
-    console.log('cartProds: ', cartProducts)
-    console.log('cart: ', cart)
-    return (
-        <Container sx={{ mt: 4 }}>
-            <Typography variant="h4" gutterBottom>
-                Your Shopping Cart
-            </Typography>
-            <Typography variant="h6" sx={{ mb: 2 }}>
-                Total Items: {cart.itemCount || 0}
-            </Typography>
-            {cart.items.length === 0 ? (
-                <Typography>Your cart is empty.</Typography>
-            ) : (
-                <Table>
-                    <TableHead>
-                        <TableRow>
-                            <TableCell>Product</TableCell>
-                            <TableCell>Quantity</TableCell>
-                            <TableCell>Total Price</TableCell>
-                            <TableCell>Actions</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {cartProducts.map((item) => (
-                            <TableRow key={item._id}>
-                                <TableCell>
-                                    <Link to={`/product/${item.product._id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                            <img
-                                                src={item.product.images ? item.product.images[0] : item.product.image}
-                                                alt={item.product.name}
-                                                style={{ width: 50, height: 50, marginRight: 10, objectFit: 'cover' }}
-                                            />
-                                            {item.product.name}
-                                        </Box>
-                                    </Link>
-                                </TableCell>
-                                <TableCell>{item.quantity}</TableCell>
-                                <TableCell>{(item.product.price * item.quantity).toFixed(2)} Lei</TableCell>
-                                <TableCell>
-                                    <IconButton onClick={() => handleIncrement(item)}>
-                                        <AddIcon />
-                                    </IconButton>
-                                    <IconButton onClick={() => handleDecrement(item)} disabled={item.quantity <= 1}>
-                                        <RemoveIcon />
-                                    </IconButton>
-                                    <IconButton onClick={() => setConfirmDelete({ open: true, item })}>
-                                        <DeleteIcon color="error" />
-                                    </IconButton>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            )}
+      {!items.length ? (
+        <Typography>Your cart is empty.</Typography>
+      ) : (
+        <>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Product</TableCell>
+                <TableCell>Quantity</TableCell>
+                <TableCell>Unit Price</TableCell>
+                <TableCell>Total Price</TableCell>
+                <TableCell>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {cartProducts.map(item => (
+                <TableRow key={item.product._id}>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <img
+                        src={item.product.images?.[0]}
+                        alt={item.product.name}
+                        style={{ width: 50, height: 50, marginRight: 10 }}
+                      />
+                      {item.product.name}
+                    </Box>
+                  </TableCell>
+                  <TableCell>{item.quantity}</TableCell>
+                  <TableCell>{item.product.price.toFixed(2)} Lei</TableCell>
+                  <TableCell>{(item.product.price * item.quantity).toFixed(2)} Lei</TableCell>
+                  <TableCell>
+                    <IconButton onClick={() => handleIncrement(item)}><AddIcon/></IconButton>
+                    <IconButton onClick={() => handleDecrement(item)} disabled={item.quantity<=1}><RemoveIcon/></IconButton>
+                    <IconButton onClick={() => setConfirmDelete({open:true,item})}><DeleteIcon color="error"/></IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+            <Typography variant="h6">Total Price: {totalPrice.toFixed(2)} Lei</Typography>
+          </Box>
+        </>
+      )}
 
-            <Dialog
-                open={confirmDelete.open}
-                onClose={() => setConfirmDelete({ open: false, item: null })}
-            >
-                <DialogTitle>Confirm Deletion</DialogTitle>
-                <DialogContent>
-                    <Typography>Are you sure you want to delete this item?</Typography>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setConfirmDelete({ open: false, item: null })}>Cancel</Button>
-                    <Button
-                        variant="contained"
-                        color="error"
-                        onClick={async () => {
-                            await updateQuantity(confirmDelete.item.product._id, 0);
-                            setConfirmDelete({ open: false, item: null });
-                        }}
-                    >
-                        Delete
-                    </Button>
-                </DialogActions>
-            </Dialog>
+      <Box sx={{ mt: 2 }}>
+        <Button variant="contained" onClick={handleCheckoutClick} disabled={!items.length}>Checkout</Button>
+      </Box>
 
-            <Box sx={{ mt: 2 }}>
-                <Button variant="contained" onClick={() => setCheckoutOpen(true)}>
-                    Checkout
-                </Button>
-            </Box>
+      {/* Login/Register Prompt */}
+      <Dialog open={loginPromptOpen} onClose={()=>setLoginPromptOpen(false)}>
+        <DialogTitle>Please Log In or Register</DialogTitle>
+        <DialogContent>
+          <Typography>You need an account to checkout. Please log in or register.</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={()=>window.location.href='/login'}>Login</Button>
+          <Button onClick={()=>window.location.href='/register'}>Register</Button>
+          <Button onClick={()=>setLoginPromptOpen(false)}>Cancel</Button>
+        </DialogActions>
+      </Dialog>
 
-            <CheckoutForm
-                open={checkoutOpen}
-                onClose={() => setCheckoutOpen(false)}
-                onCheckout={handleCheckout}
-            />
-        </Container>
-    );
+      {/* Checkout Form Dialog */}
+      <CheckoutForm
+        open={checkoutOpen}
+        onClose={()=>setCheckoutOpen(false)}
+        onCheckout={handleCheckout}
+      />
+
+      {/* Confirm Deletion Dialog */}
+      <Dialog open={confirmDelete.open} onClose={()=>setConfirmDelete({open:false,item:null})}>
+        <DialogTitle>Confirm Deletion</DialogTitle>
+        <DialogContent>
+          <Typography>Are you sure you want to remove this item?</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={()=>setConfirmDelete({open:false,item:null})}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={()=>{handleDelete(confirmDelete.item); setConfirmDelete({open:false,item:null});}}>Delete</Button>
+        </DialogActions>
+      </Dialog>
+    </Container>
+  );
 };
 
 export default Cart;

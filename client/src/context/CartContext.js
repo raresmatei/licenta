@@ -1,56 +1,143 @@
-// src/contexts/CartContext.js
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
 export const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
-  // Create a token state variable that you can update
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [cart, setCart] = useState({ items: [], itemCount: 0 });
+  const [token, setToken] = useState(localStorage.getItem('token') || null);
   const baseUrl = process.env.REACT_APP_API_BASE_URL || '';
-  const [cart, setCart] = useState(null);
-  const [cartCount, setCartCount] = useState(0);
 
-  // Function to fetch the cart based on the current token.
-  const fetchCart = useCallback(async () => {
+  const saveLocalCart = (items) => {
+    localStorage.setItem('local_cart', JSON.stringify(items));
+  };
+
+  const loadLocalCart = () => {
     try {
-      if (token) {
-        const response = await axios.get(`${baseUrl}/cart`, {
-          headers: { Authorization: `Bearer ${token}` },
-          withCredentials: true,
-        });
-        const updatedCart = response.data.cart;
-        setCart(updatedCart);
-        setCartCount(updatedCart && updatedCart.itemCount ? updatedCart.itemCount : 0);
-      } else {
-        // Clear cart if no token exists.
-        setCart(null);
-        setCartCount(0);
-      }
-    } catch (error) {
-      console.error("Error fetching cart in context:", error);
+      return JSON.parse(localStorage.getItem('local_cart')) || [];
+    } catch {
+      return [];
     }
-  }, [token,  baseUrl]);
+  };
 
-  // Optional: Listen for changes to the "token" in localStorage
-  // (Note: localStorage events fire in other tabs; if login happens in the same tab, you can call setToken explicitly.)
+  // Load guest cart on mount
   useEffect(() => {
-    const handleStorageChange = (e) => {
-      if (e.key === 'token') {
-        setToken(e.newValue);
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    const localItems = loadLocalCart();
+    const count = localItems.reduce((sum, i) => sum + i.quantity, 0);
+    setCart({ items: localItems, itemCount: count });
   }, []);
 
-  // Re-fetch cart whenever the token changes.
+  // Fetch server cart
+  const fetchServerCart = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await axios.get(`${baseUrl}/cart`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const serverCart = res.data.cart;
+      const items = serverCart.items.map(i => ({ product: i.product.toString(), quantity: i.quantity }));
+      setCart({ items, itemCount: serverCart.itemCount });
+    } catch (err) {
+      console.error('Error fetching server cart', err);
+    }
+  }, [baseUrl, token]);
+
+  // Refresh cart (server or local)
+  const refreshCart = useCallback(() => {
+    if (token) {
+      fetchServerCart();
+    } else {
+      const localItems = loadLocalCart();
+      const count = localItems.reduce((sum, i) => sum + i.quantity, 0);
+      setCart({ items: localItems, itemCount: count });
+    }
+  }, [token, fetchServerCart]);
+
+  // Sync token changes, merge local into server on login
   useEffect(() => {
-    fetchCart();
-  }, [token, fetchCart]);
+    if (token) {
+      localStorage.setItem('token', token);
+      const localItems = loadLocalCart();
+      if (localItems.length) {
+        Promise.all(
+          localItems.map(item =>
+            axios.post(
+              `${baseUrl}/cart`,
+              { productId: item.product, quantity: item.quantity },
+              { headers: { Authorization: `Bearer ${token}` } }
+            )
+          )
+        ).finally(() => {
+          localStorage.removeItem('local_cart');
+          fetchServerCart();
+        });
+      } else {
+        fetchServerCart();
+      }
+    }
+  }, [token, baseUrl, fetchServerCart]);
+
+  // Add or update items in cart
+  const addToCart = async (productId, quantity = 1) => {
+    if (token) {
+      try {
+        await axios.post(
+          `${baseUrl}/cart`,
+          { productId, quantity },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        fetchServerCart();
+      } catch (err) {
+        console.error('Error adding to server cart', err);
+      }
+    } else {
+      const localItems = loadLocalCart();
+      const existing = localItems.find(i => i.product === productId);
+      const updated = existing
+        ? localItems.map(i =>
+            i.product === productId ? { ...i, quantity: i.quantity + quantity } : i
+          )
+        : [...localItems, { product: productId, quantity }];
+      const count = updated.reduce((sum, i) => sum + i.quantity, 0);
+      setCart({ items: updated, itemCount: count });
+      saveLocalCart(updated);
+    }
+  };
+
+  // Update quantity or remove item for guest or server
+  const updateQuantity = (productId, newQuantity) => {
+    if (token) {
+      axios.patch(
+        `${baseUrl}/cart`,
+        { productId, quantity: newQuantity },
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+        .then(fetchServerCart)
+        .catch(err => console.error('Error updating server cart', err));
+    } else {
+      const localItems = loadLocalCart();
+      let updated;
+      if (newQuantity > 0) {
+        updated = localItems.map(i =>
+          i.product === productId ? { ...i, quantity: newQuantity } : i
+        );
+      } else {
+        updated = localItems.filter(i => i.product !== productId);
+      }
+      const count = updated.reduce((sum, i) => sum + i.quantity, 0);
+      setCart({ items: updated, itemCount: count });
+      saveLocalCart(updated);
+    }
+  };
+
+    // On token change (login or logout), refresh cart
+  useEffect(() => {
+  }, [token, refreshCart]);
 
   return (
-    <CartContext.Provider value={{ cart, cartCount, refreshCart: fetchCart, setCart, setCartCount, setToken }}>
+    <CartContext.Provider
+      value={{ cart, addToCart, updateQuantity, refreshCart, token, setToken }}
+    >
       {children}
     </CartContext.Provider>
   );

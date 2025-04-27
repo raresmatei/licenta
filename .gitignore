@@ -1,6 +1,9 @@
 # Local Netlify folder
-.netlify
+C
 .env
 **/test-data/
 
 **/node_modules
+
+# Local Netlify folder
+.netlify

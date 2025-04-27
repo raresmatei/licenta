@@ -1,94 +1,71 @@
-// src/components/CheckoutForm.js
 import React, { useState } from 'react';
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
+import {
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Button,
+    IconButton
+} from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 import ShippingAddressForm from './ShippingAddressForm';
 // import PaymentMethodForm from './PaymentMethodForm';
 
 const CheckoutForm = ({ open, onClose, onCheckout }) => {
     const [checkoutStep, setCheckoutStep] = useState(0);
     const [shippingAddress, setShippingAddress] = useState({});
-    // const [paymentMethod, setPaymentMethod] = useState('card'); // or 'cash'
     const paymentMethod = 'card';
-    // let cardInfo = {};
-    // const [cardInfo, setCardInfo] = useState({});
 
-    // const isShippingValid = () => {
-    //     const {
-    //         fullName,
-    //         addressLine1,
-    //         country,
-    //         state,
-    //         city,
-    //         zip
-    //     } = shippingAddress;
-    //     // Return true only if all fields have values
-    //     return (
-    //         fullName &&
-    //         addressLine1 &&
-    //         country &&
-    //         state &&
-    //         city &&
-    //         zip
-    //     );
-    // };
-
-    // const handleNext = () => {
-    //     if (!isShippingValid()) {
-    //         alert('Please fill out all required fields.');
-    //         return;
-    //     }
-    //     setCheckoutStep(1);
-    // };
-
-    const handleBack = () => {
-        setCheckoutStep(0);
+    const isShippingValid = () => {
+        const { fullName, addressLine1, country, state, city, zip } = shippingAddress;
+        return (fullName && addressLine1 && country && state && city && zip);
     };
 
     const handlePayNow = () => {
-        // Combine shipping and payment details into a single object
-        const checkoutData = {
-            shippingAddress,
-            paymentMethod,
-            cardInfo: paymentMethod,
-        };
-        // Call the provided onCheckout callback with the checkoutData
-        onCheckout(checkoutData);
+        if (!isShippingValid()) {
+            alert('Shipping information not valid');
+            return;
+        }
+        else {
+            const checkoutData = {
+                shippingAddress,
+                paymentMethod,
+                cardInfo: paymentMethod,
+            };
+            onCheckout(checkoutData);
+        }
     };
 
     return (
         <Dialog open={open} onClose={onClose} fullWidth>
             {checkoutStep === 0 && (
                 <>
-                    <DialogTitle>Enter Shipping Address</DialogTitle>
+                    <DialogTitle sx={{ m: 0, p: 2 }}>
+                        Enter Shipping Address
+                        <IconButton
+                            aria-label="close"
+                            onClick={onClose}
+                            sx={{
+                                position: 'absolute',
+                                right: 8,
+                                top: 8,
+                                color: (theme) => theme.palette.grey[500],
+                            }}
+                        >
+                            <CloseIcon />
+                        </IconButton>
+                    </DialogTitle>
                     <DialogContent>
                         <ShippingAddressForm
                             shippingAddress={shippingAddress}
                             setShippingAddress={setShippingAddress}
                         />
                     </DialogContent>
-                    <DialogActions>
-                        <Button onClick={handleBack}>Back</Button>
+                    <DialogActions sx={{ p: 2 }}>
                         <Button variant="contained" onClick={handlePayNow}>Pay Now</Button>
                     </DialogActions>
                 </>
             )}
-            {/* {checkoutStep === 1 && (
-                <>
-                    <DialogTitle>Select Payment Method</DialogTitle>
-                    <DialogContent>
-                        <PaymentMethodForm
-                            paymentMethod={paymentMethod}
-                            setPaymentMethod={setPaymentMethod}
-                            cardInfo={cardInfo}
-                            setCardInfo={setCardInfo}
-                        />
-                    </DialogContent>
-                    <DialogActions>
-                        <Button onClick={handleBack}>Back</Button>
-                        <Button variant="contained" onClick={handlePayNow}>Pay Now</Button>
-                    </DialogActions>
-                </>
-            )} */}
         </Dialog>
     );
 };
