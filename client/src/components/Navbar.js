@@ -13,7 +13,7 @@ const Navbar = () => {
   const { cart, refreshCart, token, setToken } = useContext(CartContext);
   const navigate = useNavigate();
 
-  // Ensure badge updates on login/logout
+  // Refresh badge on auth changes
   useEffect(() => {
     refreshCart();
   }, [token, refreshCart]);
@@ -30,13 +30,11 @@ const Navbar = () => {
   }
 
   const handleLogout = () => {
-    // Clear context token and storage
+    // Clear auth token and guest cart
     setToken(null);
     localStorage.removeItem('token');
-    // Clear any guest-cart in storage
     localStorage.removeItem('local_cart');
-    // Refresh cart for guest view
-    refreshCart();
+    // Navigate to login; badge will reset via effect
     navigate('/login');
   };
 
