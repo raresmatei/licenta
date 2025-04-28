@@ -1,6 +1,5 @@
-// src/pages/LandingPage.js
 import React, { useState, useMemo, useContext } from 'react';
-import { Box, Typography, Fab, Button } from '@mui/material';
+import { Box, Typography, Fab, Button, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { Link, useSearchParams } from 'react-router-dom';
 import InfiniteProductList from '../components/InfiniteProductList';
@@ -10,21 +9,21 @@ import { CartContext } from '../context/CartContext';
 const LandingPage = () => {
   const baseUrl = process.env.REACT_APP_API_BASE_URL || '';
   const { addToCart } = useContext(CartContext);
-
-  // Build filters from URL
   const [searchParams, setSearchParams] = useSearchParams();
-  const filters = useMemo(
-    () => ({
-      category: searchParams.get('category') || '',
-      brand: searchParams.get('brand') || '',
-      minPrice: searchParams.get('minPrice') || '0',
-      maxPrice: searchParams.get('maxPrice') || '10000',
-    }),
-    [searchParams]
-  );
   const [showFilters, setShowFilters] = useState(false);
+  const [sortOrder, setSortOrder] = useState('priceAsc');
+
+  // Build filters and include sort order
+  const filters = useMemo(() => ({
+    category: searchParams.get('category') || '',
+    brand: searchParams.get('brand') || '',
+    minPrice: searchParams.get('minPrice') || '0',
+    maxPrice: searchParams.get('maxPrice') || '10000',
+    sort: sortOrder
+  }), [searchParams, sortOrder]);
 
   const handleFilter = (newFilters) => setSearchParams(newFilters);
+  const handleSortChange = (e) => setSortOrder(e.target.value);
 
   const handleAdd = async (productId) => {
     await addToCart(productId, 1);
@@ -69,7 +68,11 @@ const LandingPage = () => {
                 </Typography>
               </Box>
               <Box sx={{ p: 2, textAlign: 'center' }}>
-                <Button variant="contained" size="small" onClick={(e) => { e.preventDefault(); handleAdd(product._id); }}>
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={(e) => { e.preventDefault(); handleAdd(product._id); }}
+                >
                   Add to Cart
                 </Button>
               </Box>
@@ -93,6 +96,7 @@ const LandingPage = () => {
             top: 0,
             height: 'calc(100vh + 200px)',
             borderRight: showFilters ? '1px solid' : 'none',
+            borderTop: showFilters ? '1px solid' : 'none',
             borderColor: 'divider',
             width: showFilters ? 'auto' : 0,
             zIndex: 1000,
@@ -112,6 +116,25 @@ const LandingPage = () => {
           <Typography variant="subtitle1" gutterBottom align="center" sx={{ fontWeight: 'bold' }}>
             Featured Products
           </Typography>
+
+          {/* Sort Control */}
+          <FormControl sx={{ m: 2, minWidth: 160 }}>
+            <InputLabel id="sort-label">Sort by Price</InputLabel>
+            <Select
+              labelId="sort-label"
+              value={sortOrder}
+              label="Sort by Price"
+              onChange={handleSortChange}
+              sx={{
+                height: '36px',
+                fontSize: '14px'
+              }}
+            >
+              <MenuItem value="priceAsc">Low to High</MenuItem>
+              <MenuItem value="priceDesc">High to Low</MenuItem>
+            </Select>
+          </FormControl>
+
           <InfiniteProductList
             baseUrl={baseUrl}
             token={localStorage.getItem('token')}

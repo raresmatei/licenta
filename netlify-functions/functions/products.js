@@ -59,72 +59,49 @@ const handler = async (event, context) => {
   try {
     switch (event.httpMethod) {
       case 'GET': {
-        // Get all query parameters as filters.
         let filters = event.queryStringParameters || {};
-
-        // Remove empty values.
         Object.keys(filters).forEach(key => {
-          if (filters[key] === "" || filters[key] === null || filters[key] === undefined) {
-            delete filters[key];
-          }
+          if (filters[key] === '' || filters[key] == null) delete filters[key];
         });
-
-        // Extract pagination parameters.
         const page = parseInt(filters.page, 10) || 1;
         const limit = parseInt(filters.limit, 10) || 30;
         const skip = (page - 1) * limit;
         delete filters.page;
         delete filters.limit;
-
-        // If an "id" filter is provided, map it to _id.
-        if (filters.id) {
-          filters._id = filters.id;
-          delete filters.id;
-        }
-
-        // Build price filter if minPrice and/or maxPrice are provided.
+        if (filters.id) { filters._id = filters.id; delete filters.id; }
         if (filters.minPrice || filters.maxPrice) {
           const priceFilter = {};
-          if (filters.minPrice) {
-            priceFilter.$gte = parseFloat(filters.minPrice);
-          }
-          if (filters.maxPrice) {
-            priceFilter.$lte = parseFloat(filters.maxPrice);
-          }
+          if (filters.minPrice) priceFilter.$gte = parseFloat(filters.minPrice);
+          if (filters.maxPrice) priceFilter.$lte = parseFloat(filters.maxPrice);
           filters.price = priceFilter;
           delete filters.minPrice;
           delete filters.maxPrice;
         }
-
-        // For certain fields like "brand" and "category", if the value contains commas,
-        // use the $in operator.
-        ['brand', 'category'].forEach(field => {
-          if (filters[field] && filters[field].indexOf(',') !== -1) {
-            // Split by comma and trim.
-            filters[field] = { $in: filters[field].split(',').map(v => v.trim()) };
+        ['brand','category'].forEach(field => {
+          if (filters[field] && filters[field].includes(',')) {
+            filters[field] = { $in: filters[field].split(',').map(v=>v.trim()) };
           }
         });
 
-        // Always start from page 1 when filters are provided.
-        if (Object.keys(filters).length > 0) {
-          // Optionally, you could force page=1 here.
-          // However, make sure your frontend resets its page state.
+        // Apply sorting
+        let sortObj = {};
+        if (filters.sort === 'priceAsc') {
+          sortObj.price = 1;
+        } else if (filters.sort === 'priceDesc') {
+          sortObj.price = -1;
         }
+        delete filters.sort;
 
-        try {
-          const products = await Product.find(filters).skip(skip).limit(limit);
-          const totalCount = await Product.countDocuments(filters);
-          return {
-            statusCode: 200,
-            body: JSON.stringify({ products, totalCount, page, limit }),
-          };
-        } catch (err) {
-          console.error('Error fetching products:', err);
-          return {
-            statusCode: 500,
-            body: JSON.stringify({ error: 'Internal Server Error' }),
-          };
-        }
+        const query = Product.find(filters)
+          .skip(skip)
+          .limit(limit)
+          .sort(sortObj);
+        const products = await query;
+        const totalCount = await Product.countDocuments(filters);
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ products, totalCount, page, limit }),
+        };
       }
 
       case 'POST': {
