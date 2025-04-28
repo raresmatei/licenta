@@ -12,7 +12,6 @@ import ShippingAddressForm from './ShippingAddressForm';
 // import PaymentMethodForm from './PaymentMethodForm';
 
 const CheckoutForm = ({ open, onClose, onCheckout }) => {
-    const [checkoutStep, setCheckoutStep] = useState(0);
     const [shippingAddress, setShippingAddress] = useState({});
     const paymentMethod = 'card';
 
@@ -38,34 +37,32 @@ const CheckoutForm = ({ open, onClose, onCheckout }) => {
 
     return (
         <Dialog open={open} onClose={onClose} fullWidth>
-            {checkoutStep === 0 && (
-                <>
-                    <DialogTitle sx={{ m: 0, p: 2 }}>
-                        Enter Shipping Address
-                        <IconButton
-                            aria-label="close"
-                            onClick={onClose}
-                            sx={{
-                                position: 'absolute',
-                                right: 8,
-                                top: 8,
-                                color: (theme) => theme.palette.grey[500],
-                            }}
-                        >
-                            <CloseIcon />
-                        </IconButton>
-                    </DialogTitle>
-                    <DialogContent>
-                        <ShippingAddressForm
-                            shippingAddress={shippingAddress}
-                            setShippingAddress={setShippingAddress}
-                        />
-                    </DialogContent>
-                    <DialogActions sx={{ p: 2 }}>
-                        <Button variant="contained" onClick={handlePayNow}>Pay Now</Button>
-                    </DialogActions>
-                </>
-            )}
+            <>
+                <DialogTitle sx={{ m: 0, p: 2 }}>
+                    Enter Shipping Address
+                    <IconButton
+                        aria-label="close"
+                        onClick={onClose}
+                        sx={{
+                            position: 'absolute',
+                            right: 8,
+                            top: 8,
+                            color: (theme) => theme.palette.grey[500],
+                        }}
+                    >
+                        <CloseIcon />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent>
+                    <ShippingAddressForm
+                        shippingAddress={shippingAddress}
+                        setShippingAddress={setShippingAddress}
+                    />
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button variant="contained" onClick={handlePayNow}>Pay Now</Button>
+                </DialogActions>
+            </>
         </Dialog>
     );
 };

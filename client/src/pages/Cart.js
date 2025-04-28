@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
 import {
   Container,
   Typography,
@@ -29,14 +29,17 @@ const Cart = () => {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [cartProducts, setCartProducts] = useState([]);
 
-  const { cart = { items: [], itemCount: 0 }, updateQuantity, refreshCart, token } = useContext(CartContext);
-  const items = cart.items || [];
+  const { cart = { items: [], itemCount: 0 }, updateQuantity, token } = useContext(CartContext);
+  const items = useMemo(() => cart.items || [], [cart.items]);
   const baseUrl = process.env.REACT_APP_API_BASE_URL || '';
 
   // Load product details
   useEffect(() => {
     const loadProducts = async () => {
-      if (!items.length) return setCartProducts([]);
+      if (!items.length) {
+        setCartProducts([]);
+        return;
+      }
       const prods = await Promise.all(
         items.map(async (item) => {
           const res = await axios.get(
@@ -61,7 +64,7 @@ const Cart = () => {
     0
   );
 
-  // Restore checkout logic
+  // Checkout logic
   const handleCheckout = async (checkoutData) => {
     try {
       const decoded = jwtDecode(token);
@@ -87,15 +90,10 @@ const Cart = () => {
       const frontendBase = process.env.REACT_APP_ENVIRONMENT === 'dev'
         ? 'http://localhost:3000'
         : 'https://mara-cosmetics.netlify.app';
-    
+
       const response = await axios.post(
         `${baseUrl}/createCheckoutSession`,
-        {
-          lineItems,
-          successUrl: `${frontendBase}/checkout-successful`,
-          cancelUrl: `${frontendBase}/cart`,
-          orderData
-        },
+        { lineItems, successUrl: `${frontendBase}/checkout-successful`, cancelUrl: `${frontendBase}/cart`, orderData },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -138,11 +136,7 @@ const Cart = () => {
                 <TableRow key={item.product._id}>
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <img
-                        src={item.product.images?.[0]}
-                        alt={item.product.name}
-                        style={{ width: 50, height: 50, marginRight: 10 }}
-                      />
+                      <img src={item.product.images?.[0]} alt={item.product.name} style={{ width: 50, height: 50, marginRight: 10 }} />
                       {item.product.name}
                     </Box>
                   </TableCell>
@@ -161,42 +155,47 @@ const Cart = () => {
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
             <Typography variant="h6">Total Price: {totalPrice.toFixed(2)} Lei</Typography>
           </Box>
+
+          {/* Always-visible Checkout Button */}
+          <Box sx={{ mt: 2 }}>
+            <Button variant="contained" onClick={handleCheckoutClick}>
+              Checkout
+            </Button>
+          </Box>
         </>
       )}
 
-      <Box sx={{ mt: 2 }}>
-        <Button variant="contained" onClick={handleCheckoutClick} disabled={!items.length}>Checkout</Button>
-      </Box>
-
       {/* Login/Register Prompt */}
-      <Dialog open={loginPromptOpen} onClose={()=>setLoginPromptOpen(false)}>
+      <Dialog open={loginPromptOpen} onClose={() => setLoginPromptOpen(false)}>
         <DialogTitle>Please Log In or Register</DialogTitle>
         <DialogContent>
-          <Typography>You need an account to checkout. Please log in or register.</Typography>
+          <Typography>You need an account to checkout. Please log in or register to continue.</Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={()=>window.location.href='/login'}>Login</Button>
-          <Button onClick={()=>window.location.href='/register'}>Register</Button>
-          <Button onClick={()=>setLoginPromptOpen(false)}>Cancel</Button>
+          <Button onClick={() => window.location.href = '/login'}>Login</Button>
+          <Button onClick={() => window.location.href = '/register'}>Register</Button>
+          <Button onClick={() => setLoginPromptOpen(false)}>Cancel</Button>
         </DialogActions>
       </Dialog>
 
       {/* Checkout Form Dialog */}
       <CheckoutForm
         open={checkoutOpen}
-        onClose={()=>setCheckoutOpen(false)}
+        onClose={() => setCheckoutOpen(false)}
         onCheckout={handleCheckout}
       />
 
       {/* Confirm Deletion Dialog */}
-      <Dialog open={confirmDelete.open} onClose={()=>setConfirmDelete({open:false,item:null})}>
+      <Dialog open={confirmDelete.open} onClose={() => setConfirmDelete({open:false,item:null})}>
         <DialogTitle>Confirm Deletion</DialogTitle>
         <DialogContent>
           <Typography>Are you sure you want to remove this item?</Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={()=>setConfirmDelete({open:false,item:null})}>Cancel</Button>
-          <Button variant="contained" color="error" onClick={()=>{handleDelete(confirmDelete.item); setConfirmDelete({open:false,item:null});}}>Delete</Button>
+          <Button onClick={() => setConfirmDelete({open:false,item:null})}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={() => { handleDelete(confirmDelete.item); setConfirmDelete({open:false,item:null}); }}>
+            Delete
+          </Button>
         </DialogActions>
       </Dialog>
     </Container>
