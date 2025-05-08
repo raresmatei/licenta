@@ -1,13 +1,11 @@
-// netlify-functions/db.js
 const mongoose = require('mongoose');
-require('dotenv').config(); // Loads environment variables from .env
+const Cart = require('./models/Cart');
+require('dotenv').config();
 
-// Optional: Prevent creating multiple connections in a serverless environment
 let isConnected;
 
 const connectToDatabase = async () => {
   if (isConnected) {
-    // Use existing database connection
     return;
   }
   
@@ -18,6 +16,10 @@ const connectToDatabase = async () => {
     });
     
     isConnected = db.connections[0].readyState;
+
+    Cart.syncIndexes()
+      .then(() => console.log('Indexes are in sync'))
+      .catch(console.error);
   } catch (error) {
     console.error('Error connecting to MongoDB:', error);
     throw error;
