@@ -12,7 +12,9 @@ const stripe   = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const connectToDatabase = require('../db');
 const Order    = require('../models/Order');
 const Cart     = require('../models/Cart');
+const Product  = require('../models/Product'); // needed so Mongoose can populate
 const Mailjet  = require('node-mailjet');
+const generateInvoicePdf = require('../generateInvoicePdf');
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET; // whsec_...
 
@@ -25,19 +27,63 @@ async function sendConfirmationEmail(order) {
     apiSecret: process.env.MAILJET_PRIVATE_API_KEY,
   });
 
+  // Generate the invoice PDF as a Buffer
+  const pdfBuffer = await generateInvoicePdf(order);
+  const pdfBase64 = pdfBuffer.toString('base64');
+
+  // Build product rows for the HTML body
+  const productRows = (order.products || []).map((item, i) => {
+    const p = item.product || {};
+    const name = p.name || 'Product';
+    const price = p.price || 0;
+    const qty = item.quantity || 1;
+    const lineTotal = price * qty;
+    return `<tr>
+      <td style="padding:8px;border-bottom:1px solid #E8DDD9;">${i + 1}</td>
+      <td style="padding:8px;border-bottom:1px solid #E8DDD9;">${name}</td>
+      <td style="padding:8px;border-bottom:1px solid #E8DDD9;text-align:center;">${qty}</td>
+      <td style="padding:8px;border-bottom:1px solid #E8DDD9;text-align:right;">${price.toFixed(2)} lei</td>
+      <td style="padding:8px;border-bottom:1px solid #E8DDD9;text-align:right;">${lineTotal.toFixed(2)} lei</td>
+    </tr>`;
+  }).join('');
+
   const payload = {
     Messages: [
       {
         From: { Email: 'maracosmetics12@gmail.com', Name: 'Mara Cosmetics' },
-        To:   [{ Email: order.userEmail, Name: 'Customer' }],
-        Subject: 'Order Confirmation',
-        TextPart: 'Thank you for your purchase!',
+        To:   [{ Email: order.userEmail, Name: order.shippingAddress?.fullName || 'Customer' }],
+        Subject: `Order Confirmation – #${order._id}`,
+        TextPart: 'Thank you for your purchase! Your invoice is attached.',
         HTMLPart: `
-          <h1>Thank you for your order!</h1>
-          <p>Order ID: <strong>${order._id}</strong></p>
-          <p>Total: ${order.totalAmount.toFixed(2)} lei</p>
-          <p>Shipping to: ${order.shippingAddress.addressLine1}, ${order.shippingAddress.city}</p>
+          <div style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;max-width:600px;margin:auto;">
+            <h1 style="color:#8C5E6B;">Thank you for your order!</h1>
+            <p><strong>Order ID:</strong> ${order._id}</p>
+            <p><strong>Date:</strong> ${new Date(order.createdAt || Date.now()).toLocaleDateString('en-GB')}</p>
+            <p><strong>Shipping to:</strong> ${order.shippingAddress.fullName}, ${order.shippingAddress.addressLine1}, ${order.shippingAddress.city}</p>
+            <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+              <thead>
+                <tr style="background:#8C5E6B;color:#fff;">
+                  <th style="padding:8px;text-align:left;">#</th>
+                  <th style="padding:8px;text-align:left;">Product</th>
+                  <th style="padding:8px;text-align:center;">Qty</th>
+                  <th style="padding:8px;text-align:right;">Price</th>
+                  <th style="padding:8px;text-align:right;">Total</th>
+                </tr>
+              </thead>
+              <tbody>${productRows}</tbody>
+            </table>
+            <p style="font-size:18px;font-weight:bold;color:#8C5E6B;">Total: ${order.totalAmount.toFixed(2)} lei</p>
+            <hr style="border:none;border-top:1px solid #E8DDD9;margin:24px 0;" />
+            <p style="font-size:12px;color:#6B6369;">A detailed invoice PDF is attached to this email. If you have any questions, reply to this email.</p>
+          </div>
         `,
+        Attachments: [
+          {
+            ContentType: 'application/pdf',
+            Filename: `invoice-${order._id}.pdf`,
+            Base64Content: pdfBase64,
+          },
+        ],
       },
     ],
   };
@@ -83,7 +129,7 @@ exports.handler = async (event) => {
           'paymentInfo.paymentStatus': session.payment_status,
         },
         { new: true }
-      );
+      ).populate('products.product');
 
       if (!order) {
         console.warn('[StripeWebhook] Order not found for session', session.id);

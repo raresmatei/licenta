@@ -261,31 +261,55 @@ const AdminDashboard = () => {
   const renderTable = (products, lastRef) => (
     <Table>
       <TableHead>
-        <TableRow>
-          <TableCell>Name</TableCell>
-          <TableCell>Price</TableCell>
-          <TableCell>Image</TableCell>
-          <TableCell>Description</TableCell>
-          <TableCell>Actions</TableCell>
+        <TableRow sx={{ backgroundColor: '#FAF5F3' }}>
+          <TableCell sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: '0.85rem', color: '#2D2A2E' }}>Name</TableCell>
+          <TableCell sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: '0.85rem', color: '#2D2A2E' }}>Price</TableCell>
+          <TableCell sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: '0.85rem', color: '#2D2A2E' }}>Image</TableCell>
+          <TableCell sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: '0.85rem', color: '#2D2A2E' }}>Description</TableCell>
+          <TableCell sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: '0.85rem', color: '#2D2A2E' }}>Actions</TableCell>
         </TableRow>
       </TableHead>
       <TableBody>
         {products.map((product, index) => {
           const refProp = index === products.length - 1 ? { ref: lastRef } : {};
           return (
-            <TableRow key={product._id} {...refProp}>
-              <TableCell>{product.name}</TableCell>
-              <TableCell>{parseFloat(product.price).toFixed(2)} Lei</TableCell>
+            <TableRow key={product._id} {...refProp} sx={{ '&:last-child td': { borderBottom: 0 } }}>
+              <TableCell sx={{ fontFamily: "'Inter', sans-serif", fontWeight: 500 }}>{product.name}</TableCell>
+              <TableCell sx={{ fontFamily: "'Inter', sans-serif", color: '#8C5E6B', fontWeight: 600 }}>{parseFloat(product.price).toFixed(2)} Lei</TableCell>
               <TableCell>
-                <img src={product.images[0]} alt={product.name} width={50} height={50} />
+                <img src={product.images[0]} alt={product.name} width={50} height={50} style={{ borderRadius: '8px', objectFit: 'cover', border: '1px solid #E8DDD9' }} />
               </TableCell>
-              <TableCell>{product.description}</TableCell>
+              <TableCell sx={{ fontFamily: "'Inter', sans-serif", color: '#6B6369', fontSize: '0.85rem' }}>{product.description}</TableCell>
               <TableCell>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  <Button variant="outlined" onClick={() => handleEditProduct(product)}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => handleEditProduct(product)}
+                    sx={{
+                      borderColor: '#8C5E6B',
+                      color: '#8C5E6B',
+                      fontFamily: "'Inter', sans-serif",
+                      textTransform: 'none',
+                      borderRadius: '8px',
+                      fontSize: '0.8rem',
+                      '&:hover': { borderColor: '#6B4450', backgroundColor: 'rgba(140,94,107,0.06)' },
+                    }}
+                  >
                     Edit
                   </Button>
-                  <Button variant="outlined" color="error" onClick={() => handleOpenDeleteDialog(product)}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => handleOpenDeleteDialog(product)}
+                    sx={{
+                      borderColor: '#C45B5B',
+                      color: '#C45B5B',
+                      fontFamily: "'Inter', sans-serif",
+                      textTransform: 'none',
+                      borderRadius: '8px',
+                      fontSize: '0.8rem',
+                      '&:hover': { borderColor: '#a03a3a', backgroundColor: 'rgba(196,91,91,0.06)' },
+                    }}
+                  >
                     Delete
                   </Button>
                 </Box>
@@ -300,12 +324,41 @@ const AdminDashboard = () => {
   return (
     <Container maxWidth={false} sx={{ mt: 4, maxWidth: 'none' }}>
       {/* Header Section */}
-      <Paper sx={{ p: 2, mb: 2 }}>
-        <Typography variant="h4" gutterBottom>
+      <Paper
+        elevation={0}
+        sx={{
+          p: 3,
+          mb: 3,
+          borderRadius: '12px',
+          border: '1px solid #E8DDD9',
+          backgroundColor: '#fff',
+        }}
+      >
+        <Typography
+          variant="h4"
+          gutterBottom
+          sx={{
+            fontFamily: "'Poppins', sans-serif",
+            fontWeight: 600,
+            color: '#2D2A2E',
+          }}
+        >
           Admin Dashboard
         </Typography>
-        <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-          <Button variant="contained" onClick={handleDialogOpen}>
+        <Box sx={{ display: 'flex', gap: 2, mb: 1 }}>
+          <Button
+            variant="contained"
+            onClick={handleDialogOpen}
+            sx={{
+              backgroundColor: '#8C5E6B',
+              fontFamily: "'Inter', sans-serif",
+              fontWeight: 500,
+              textTransform: 'none',
+              borderRadius: '8px',
+              px: 3,
+              '&:hover': { backgroundColor: '#6B4450' },
+            }}
+          >
             Add Product
           </Button>
         </Box>
@@ -330,7 +383,15 @@ const AdminDashboard = () => {
 
         {/* Product Table: shifts right when filter panel is open */}
         <Box sx={{ transition: 'margin-left 1s', marginLeft: showFilters ? '320px' : '0px' }}>
-          <Paper sx={{ p: 2 }}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2,
+              borderRadius: '12px',
+              border: '1px solid #E8DDD9',
+              backgroundColor: '#fff',
+            }}
+          >
             <InfiniteProductList
               key={`productlist-${refreshCounter}`}
               baseUrl={baseUrl}

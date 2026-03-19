@@ -211,7 +211,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
           cursor: 'pointer',
           mb: 1,
           border: showFilters ? 'none' : '2px solid',
-          borderColor: 'black'
+          borderColor: '#8C5E6B'
         }}
         onClick={() => setShowFilters(!showFilters)}
       >
@@ -220,6 +220,8 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
           sx={{ 
             fontWeight: 'bold',
             pl: 2,
+            fontFamily: "'Poppins', sans-serif",
+            color: '#2D2A2E',
           }}
         >
           {showFilters ? 'HIDE FILTERS' : 'SHOW FILTERS'}
@@ -242,7 +244,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
               }}
               onClick={() => setShowCategorySection((prev) => !prev)}
             >
-              <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 'bold', fontFamily: "'Poppins', sans-serif" }}>
                 CATEGORY
               </Typography>
               {showCategorySection ? <ExpandLess /> : <ExpandMore />}
@@ -270,7 +272,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
                       cursor: 'pointer',
                       mb: 0.5,
                       p: 0.5,
-                      border: selectedCategory === catObj._id ? '1px solid #1976d2' : 'none',
+                      border: selectedCategory === catObj._id ? '1px solid #8C5E6B' : 'none',
                       borderRadius: '4px',
                     }}
                     onClick={() => handleCategoryClick(catObj._id)}
@@ -278,7 +280,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
                     <Typography variant="body2">{catObj._id}</Typography>
                     <Typography
                       variant="body2"
-                      sx={{ fontWeight: 'bold', fontSize: '0.8rem', color: '#1976d2' }}
+                      sx={{ fontWeight: 'bold', fontSize: '0.8rem', color: '#8C5E6B' }}
                     >
                       {catObj.count}
                     </Typography>
@@ -300,7 +302,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
                 }}
                 onClick={() => setShowPriceSection((prev) => !prev)}
               >
-                <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', fontFamily: "'Poppins', sans-serif" }}>
                   PRICE
                 </Typography>
                 {showPriceSection ? <ExpandLess /> : <ExpandMore />}
@@ -317,7 +319,12 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
                     value={priceRange}
                     onChange={handleSliderChange}
                     valueLabelDisplay="auto"
-                    sx={{ mt: 1 }}
+                    sx={{
+                      mt: 1,
+                      color: '#8C5E6B',
+                      '& .MuiSlider-thumb': { backgroundColor: '#8C5E6B' },
+                      '& .MuiSlider-track': { backgroundColor: '#8C5E6B' },
+                    }}
                   />
                 </Box>
               </Collapse>
@@ -336,7 +343,7 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
                 }}
                 onClick={() => setShowBrandSection((prev) => !prev)}
               >
-                <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', fontFamily: "'Poppins', sans-serif" }}>
                   BRAND
                 </Typography>
                 {showBrandSection ? <ExpandLess /> : <ExpandMore />}
@@ -378,6 +385,10 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
                             name={brandObj._id}
                             checked={selectedBrands.includes(brandObj._id)}
                             onChange={handleBrandChange}
+                            sx={{
+                              color: '#C9929D',
+                              '&.Mui-checked': { color: '#8C5E6B' },
+                            }}
                           />
                         }
                         label={
@@ -385,10 +396,10 @@ const ProductFilter = forwardRef(function ProductFilter(props, ref) {
                             {brandObj._id}{' '}
                             <span
                               style={{
-                                fontWeight: 'bold',
-                                fontSize: '0.8rem',
-                                color: '#1976d2',
-                                marginLeft: '4px',
+                              fontWeight: 'bold',
+                              fontSize: '0.8rem',
+                              color: '#8C5E6B',
+                              marginLeft: '4px',
                               }}
                             >
                               ({brandObj.count})

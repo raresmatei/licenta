@@ -33,10 +33,10 @@ const LandingPage = () => {
     <Box
       sx={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill,250px)',
-        gap: 2,
+        gridTemplateColumns: 'repeat(auto-fill, 260px)',
+        gap: 3,
         justifyContent: 'center',
-        p: 2,
+        p: 3,
       }}
     >
       {products.map((product, idx) => (
@@ -44,34 +44,81 @@ const LandingPage = () => {
           <Link to={`/product/${product._id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
             <Box
               sx={{
-                border: '1px solid #ddd',
-                borderRadius: 1,
+                backgroundColor: '#fff',
+                borderRadius: '12px',
                 overflow: 'hidden',
                 display: 'flex',
                 flexDirection: 'column',
                 height: '100%',
-                transition: 'transform 0.5s, box-shadow 0.5s',
-                '&:hover': { transform: 'scale(1.05)', boxShadow: '0 4px 16px rgba(0,0,0,0.2)' },
+                border: '1px solid #E8DDD9',
+                transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: '0 8px 30px rgba(140,94,107,0.12)',
+                },
               }}
             >
-              <img
-                src={product.images?.[0] || ''}
-                alt={product.name}
-                style={{ width: '100%', height: '200px', objectFit: 'cover' }}
-              />
-              <Box sx={{ p: 2, flexGrow: 1 }}>
-                <Typography variant="h6">{product.name}</Typography>
-                <Typography variant="subtitle2">{product.category}</Typography>
-                <Typography variant="subtitle2">{product.brand}</Typography>
-                <Typography variant="body1" color="text.secondary">
+              <Box sx={{ position: 'relative', overflow: 'hidden' }}>
+                <img
+                  src={product.images?.[0] || ''}
+                  alt={product.name}
+                  style={{ width: '100%', height: '220px', objectFit: 'cover', display: 'block' }}
+                />
+              </Box>
+              <Box sx={{ p: 2.5, flexGrow: 1 }}>
+                <Typography
+                  variant="subtitle1"
+                  sx={{
+                    fontFamily: "'Poppins', sans-serif",
+                    fontWeight: 600,
+                    fontSize: '0.95rem',
+                    color: '#2D2A2E',
+                    mb: 0.5,
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {product.name}
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{ color: '#6B6369', fontSize: '0.8rem', mb: 0.25 }}
+                >
+                  {product.category}
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{ color: '#6B6369', fontSize: '0.8rem', mb: 1 }}
+                >
+                  {product.brand}
+                </Typography>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    fontFamily: "'Poppins', sans-serif",
+                    fontWeight: 600,
+                    color: '#8C5E6B',
+                    fontSize: '1.05rem',
+                  }}
+                >
                   {parseFloat(product.price).toFixed(2)} lei
                 </Typography>
               </Box>
-              <Box sx={{ p: 2, textAlign: 'center' }}>
+              <Box sx={{ px: 2.5, pb: 2.5 }}>
                 <Button
                   variant="contained"
+                  fullWidth
                   size="small"
                   onClick={(e) => { e.preventDefault(); handleAdd(product._id); }}
+                  sx={{
+                    backgroundColor: '#8C5E6B',
+                    fontFamily: "'Inter', sans-serif",
+                    fontWeight: 500,
+                    textTransform: 'none',
+                    borderRadius: '8px',
+                    py: 1,
+                    fontSize: '0.85rem',
+                    '&:hover': { backgroundColor: '#6B4450' },
+                  }}
                 >
                   Add to Cart
                 </Button>
@@ -113,27 +160,62 @@ const LandingPage = () => {
         </Box>
 
         <Box sx={{ flexGrow: 1, transition: 'margin-left 0.5s', marginLeft: 0 }}>
-          <Typography variant="subtitle1" gutterBottom align="center" sx={{ fontWeight: 'bold' }}>
+          <Typography
+            variant="h5"
+            gutterBottom
+            align="center"
+            sx={{
+              fontFamily: "'Poppins', sans-serif",
+              fontWeight: 600,
+              color: '#2D2A2E',
+              mt: 2,
+              letterSpacing: '0.3px',
+            }}
+          >
             Featured Products
           </Typography>
 
-          {/* Sort Control */}
-          <FormControl sx={{ m: 2, minWidth: 160 }}>
-            <InputLabel id="sort-label">Sort by Price</InputLabel>
-            <Select
-              labelId="sort-label"
-              value={sortOrder}
-              label="Sort by Price"
-              onChange={handleSortChange}
-              sx={{
-                height: '36px',
-                fontSize: '14px'
-              }}
-            >
-              <MenuItem value="priceAsc">Low to High</MenuItem>
-              <MenuItem value="priceDesc">High to Low</MenuItem>
-            </Select>
-          </FormControl>
+          {/* Sort Control – aligned with the first card column */}
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, 260px)',
+              gap: 3,
+              justifyContent: 'center',
+              px: 3,
+              mt: 1,
+            }}
+          >
+            <FormControl sx={{ minWidth: 180 }}>
+              <InputLabel id="sort-label" sx={{ fontFamily: "'Inter', sans-serif" }}>
+                Sort by Price
+              </InputLabel>
+              <Select
+                labelId="sort-label"
+                value={sortOrder}
+                label="Sort by Price"
+                onChange={handleSortChange}
+                sx={{
+                  height: '40px',
+                  fontSize: '0.875rem',
+                  fontFamily: "'Inter', sans-serif",
+                  borderRadius: '8px',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#E8DDD9',
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#C9929D',
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#8C5E6B',
+                  },
+                }}
+              >
+                <MenuItem value="priceAsc">Low to High</MenuItem>
+                <MenuItem value="priceDesc">High to Low</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
 
           <InfiniteProductList
             baseUrl={baseUrl}
@@ -144,8 +226,16 @@ const LandingPage = () => {
         </Box>
       </Box>
 
-      <Box sx={{ position: 'fixed', bottom: 16, right: 16 }}>
-        <Fab size="small" onClick={scrollToTop}>
+      <Box sx={{ position: 'fixed', bottom: 96, right: 28, zIndex: 1200 }}>
+        <Fab
+          size="small"
+          onClick={scrollToTop}
+          sx={{
+            backgroundColor: '#8C5E6B',
+            color: '#fff',
+            '&:hover': { backgroundColor: '#6B4450' },
+          }}
+        >
           <KeyboardArrowUpIcon />
         </Fab>
       </Box>

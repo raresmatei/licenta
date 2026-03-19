@@ -31,11 +31,31 @@ const Register = () => {
 
   return (
     <Container maxWidth="sm">
-      <Paper elevation={3} sx={{ padding: 4, marginTop: 8 }}>
-        <Typography variant="h4" component="h1" gutterBottom align="center">
-          Register
+      <Paper
+        elevation={0}
+        sx={{
+          padding: 5,
+          marginTop: 10,
+          borderRadius: '16px',
+          border: '1px solid #E8DDD9',
+          backgroundColor: '#fff',
+        }}
+      >
+        <Typography
+          variant="h4"
+          component="h1"
+          gutterBottom
+          align="center"
+          sx={{
+            fontFamily: "'Poppins', sans-serif",
+            fontWeight: 600,
+            color: '#2D2A2E',
+            mb: 3,
+          }}
+        >
+          Create Account
         </Typography>
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+        {error && <Alert severity="error" sx={{ mb: 2, borderRadius: '8px' }}>{error}</Alert>}
         <Box component="form" onSubmit={handleSubmit} noValidate>
           <TextField
             label="Username"
@@ -46,6 +66,16 @@ const Register = () => {
             value={formData.username}
             onChange={handleChange}
             required
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '10px',
+                fontFamily: "'Inter', sans-serif",
+                '& fieldset': { borderColor: '#E8DDD9' },
+                '&:hover fieldset': { borderColor: '#C9929D' },
+                '&.Mui-focused fieldset': { borderColor: '#8C5E6B' },
+              },
+              '& .MuiInputLabel-root.Mui-focused': { color: '#8C5E6B' },
+            }}
           />
           <TextField
             label="Email"
@@ -56,6 +86,16 @@ const Register = () => {
             value={formData.email}
             onChange={handleChange}
             required
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '10px',
+                fontFamily: "'Inter', sans-serif",
+                '& fieldset': { borderColor: '#E8DDD9' },
+                '&:hover fieldset': { borderColor: '#C9929D' },
+                '&.Mui-focused fieldset': { borderColor: '#8C5E6B' },
+              },
+              '& .MuiInputLabel-root.Mui-focused': { color: '#8C5E6B' },
+            }}
           />
           <TextField
             label="Password"
@@ -67,16 +107,32 @@ const Register = () => {
             value={formData.password}
             onChange={handleChange}
             required
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '10px',
+                fontFamily: "'Inter', sans-serif",
+                '& fieldset': { borderColor: '#E8DDD9' },
+                '&:hover fieldset': { borderColor: '#C9929D' },
+                '&.Mui-focused fieldset': { borderColor: '#8C5E6B' },
+              },
+              '& .MuiInputLabel-root.Mui-focused': { color: '#8C5E6B' },
+            }}
           />
           <Button
             type="submit"
             variant="contained"
             fullWidth
             sx={{
-              marginTop: 2,
-              backgroundColor: '#f7c9d7',
-              color: '#333',
-              '&:hover': { backgroundColor: '#f0a1b2' },
+              marginTop: 3,
+              backgroundColor: '#8C5E6B',
+              color: '#fff',
+              fontFamily: "'Inter', sans-serif",
+              fontWeight: 500,
+              textTransform: 'none',
+              fontSize: '1rem',
+              borderRadius: '10px',
+              py: 1.3,
+              '&:hover': { backgroundColor: '#6B4450' },
             }}
           >
             Register

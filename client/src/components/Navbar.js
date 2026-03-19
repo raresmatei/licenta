@@ -39,32 +39,99 @@ const Navbar = () => {
   };
 
   return (
-    <AppBar position="static" sx={{ backgroundColor: '#f7c9d7' }}>
-      <Toolbar>
-        <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-          <Link to="/" style={{ textDecoration: 'none', color: 'inherit' }}>
+    <AppBar
+      position="sticky"
+      elevation={0}
+      sx={{
+        backgroundColor: '#fff',
+        borderBottom: '1px solid #E8DDD9',
+      }}
+    >
+      <Toolbar sx={{ maxWidth: '1400px', width: '100%', mx: 'auto' }}>
+        <Typography
+          variant="h6"
+          component="div"
+          sx={{
+            flexGrow: 1,
+            fontFamily: "'Poppins', sans-serif",
+            fontWeight: 700,
+            letterSpacing: '0.5px',
+          }}
+        >
+          <Link to="/" style={{ textDecoration: 'none', color: '#8C5E6B' }}>
             Cosmetics Shop
           </Link>
         </Typography>
 
         {token ? (
-          <Button color="inherit" onClick={handleLogout}>
+          <Button
+            onClick={handleLogout}
+            sx={{
+              color: '#6B4450',
+              fontFamily: "'Inter', sans-serif",
+              fontWeight: 500,
+              textTransform: 'none',
+              fontSize: '0.9rem',
+              '&:hover': { backgroundColor: 'rgba(140,94,107,0.08)' },
+            }}
+          >
             Logout
           </Button>
         ) : (
           <>
-            <Button color="inherit" component={Link} to="/login">
+            <Button
+              component={Link}
+              to="/login"
+              sx={{
+                color: '#6B4450',
+                fontFamily: "'Inter', sans-serif",
+                fontWeight: 500,
+                textTransform: 'none',
+                fontSize: '0.9rem',
+                '&:hover': { backgroundColor: 'rgba(140,94,107,0.08)' },
+              }}
+            >
               Login
             </Button>
-            <Button color="inherit" component={Link} to="/register">
+            <Button
+              component={Link}
+              to="/register"
+              sx={{
+                color: '#fff',
+                backgroundColor: '#8C5E6B',
+                fontFamily: "'Inter', sans-serif",
+                fontWeight: 500,
+                textTransform: 'none',
+                fontSize: '0.9rem',
+                borderRadius: '8px',
+                px: 2.5,
+                ml: 1,
+                '&:hover': { backgroundColor: '#6B4450' },
+              }}
+            >
               Register
             </Button>
           </>
         )}
 
         {!isAdmin && (
-          <IconButton color="inherit" component={Link} to="/cart">
-            <Badge badgeContent={cart.itemCount || 0} color="secondary">
+          <IconButton
+            component={Link}
+            to="/cart"
+            sx={{ ml: 1.5, color: '#8C5E6B' }}
+          >
+            <Badge
+              badgeContent={cart.itemCount || 0}
+              sx={{
+                '& .MuiBadge-badge': {
+                  backgroundColor: '#8C5E6B',
+                  color: '#fff',
+                  fontFamily: "'Inter', sans-serif",
+                  fontWeight: 600,
+                  fontSize: '0.7rem',
+                },
+              }}
+            >
               <ShoppingCartIcon />
             </Badge>
           </IconButton>

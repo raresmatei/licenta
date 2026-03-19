@@ -10,6 +10,7 @@ import ProductDetail from './pages/ProductDetail';
 import './axios/axiosConfig';
 import Cart from './pages/Cart';
 import CheckoutSuccess from './pages/CheckoutSucces';
+import Chatbot from './components/chatbot/Chatbot';
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
         <Route path="/cart" element={<Cart />} />
         <Route path="checkout-successful" element={<CheckoutSuccess/>}/>
       </Routes>
+      <Chatbot />
     </Router>
   );
 }

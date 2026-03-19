@@ -1,13 +1,76 @@
+/* ── Design tokens ──
+   Primary:    #8C5E6B  (dusty rose)
+   Accent:     #C9929D  (soft pink)
+   Light bg:   #FAF5F3  (warm cream)
+   Surface:    #FFFFFF
+   Text:       #2D2A2E
+   Text muted: #6B6369
+   Border:     #E8DDD9
+   Success:    #5BA676
+   Error:      #C45B5B
+   ───────────────────── */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
+    'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: #FAF5F3;
+  color: #2D2A2E;
+  line-height: 1.6;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Poppins', 'Inter', sans-serif;
+  font-weight: 600;
+  color: #2D2A2E;
+}
+
+::selection {
+  background: #C9929D;
+  color: #fff;
+}
+
+a {
+  color: #8C5E6B;
+  text-decoration: none;
+}
+
+a:hover {
+  color: #6B4450;
 }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
+}
+
+/* Smoother scrollbars globally */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FAF5F3;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D4BCC2;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #C9929D;
 }

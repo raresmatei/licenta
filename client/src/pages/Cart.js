@@ -88,7 +88,7 @@ const Cart = () => {
       };
 
       const frontendBase = process.env.REACT_APP_ENVIRONMENT === 'dev'
-        ? 'http://localhost:3000'
+        ? 'http://localhost:8888'
         : 'https://mara-cosmetics.netlify.app';
 
       const response = await axios.post(
@@ -113,53 +113,163 @@ const Cart = () => {
   };
 
   return (
-    <Container sx={{ mt: 4 }}>
-      <Typography variant="h4" gutterBottom>Your Shopping Cart</Typography>
-      <Typography variant="h6" sx={{ mb: 2 }}>Total Items: {cart.itemCount}</Typography>
+    <Container sx={{ mt: 5, mb: 6, maxWidth: '960px !important' }}>
+      <Typography
+        variant="h4"
+        gutterBottom
+        sx={{
+          fontFamily: "'Poppins', sans-serif",
+          fontWeight: 600,
+          color: '#2D2A2E',
+        }}
+      >
+        Your Shopping Cart
+      </Typography>
+      <Typography
+        variant="body1"
+        sx={{
+          mb: 3,
+          fontFamily: "'Inter', sans-serif",
+          color: '#6B6369',
+        }}
+      >
+        {cart.itemCount} {cart.itemCount === 1 ? 'item' : 'items'} in your cart
+      </Typography>
 
       {!items.length ? (
-        <Typography>Your cart is empty.</Typography>
+        <Box
+          sx={{
+            textAlign: 'center',
+            py: 8,
+            backgroundColor: '#fff',
+            borderRadius: '12px',
+            border: '1px solid #E8DDD9',
+          }}
+        >
+          <Typography
+            variant="h6"
+            sx={{
+              fontFamily: "'Inter', sans-serif",
+              color: '#6B6369',
+              fontWeight: 400,
+            }}
+          >
+            Your cart is empty.
+          </Typography>
+        </Box>
       ) : (
         <>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Product</TableCell>
-                <TableCell>Quantity</TableCell>
-                <TableCell>Unit Price</TableCell>
-                <TableCell>Total Price</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {cartProducts.map(item => (
-                <TableRow key={item.product._id}>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <img src={item.product.images?.[0]} alt={item.product.name} style={{ width: 50, height: 50, marginRight: 10 }} />
-                      {item.product.name}
-                    </Box>
-                  </TableCell>
-                  <TableCell>{item.quantity}</TableCell>
-                  <TableCell>{item.product.price.toFixed(2)} Lei</TableCell>
-                  <TableCell>{(item.product.price * item.quantity).toFixed(2)} Lei</TableCell>
-                  <TableCell>
-                    <IconButton onClick={() => handleIncrement(item)}><AddIcon/></IconButton>
-                    <IconButton onClick={() => handleDecrement(item)} disabled={item.quantity<=1}><RemoveIcon/></IconButton>
-                    <IconButton onClick={() => setConfirmDelete({open:true,item})}><DeleteIcon color="error"/></IconButton>
-                  </TableCell>
+          <Box
+            sx={{
+              backgroundColor: '#fff',
+              borderRadius: '12px',
+              border: '1px solid #E8DDD9',
+              overflow: 'hidden',
+            }}
+          >
+            <Table>
+              <TableHead>
+                <TableRow sx={{ backgroundColor: '#FAF5F3' }}>
+                  <TableCell sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, color: '#2D2A2E', fontSize: '0.85rem' }}>Product</TableCell>
+                  <TableCell sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, color: '#2D2A2E', fontSize: '0.85rem' }}>Quantity</TableCell>
+                  <TableCell sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, color: '#2D2A2E', fontSize: '0.85rem' }}>Unit Price</TableCell>
+                  <TableCell sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, color: '#2D2A2E', fontSize: '0.85rem' }}>Total Price</TableCell>
+                  <TableCell sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, color: '#2D2A2E', fontSize: '0.85rem' }}>Actions</TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-            <Typography variant="h6">Total Price: {totalPrice.toFixed(2)} Lei</Typography>
+              </TableHead>
+              <TableBody>
+                {cartProducts.map(item => (
+                  <TableRow key={item.product._id} sx={{ '&:last-child td': { borderBottom: 0 } }}>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <img
+                          src={item.product.images?.[0]}
+                          alt={item.product.name}
+                          style={{
+                            width: 56,
+                            height: 56,
+                            borderRadius: '8px',
+                            objectFit: 'cover',
+                            marginRight: 14,
+                            border: '1px solid #E8DDD9',
+                          }}
+                        />
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontFamily: "'Inter', sans-serif",
+                            fontWeight: 500,
+                            color: '#2D2A2E',
+                          }}
+                        >
+                          {item.product.name}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ fontFamily: "'Inter', sans-serif", fontWeight: 500 }}>
+                        {item.quantity}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ fontFamily: "'Inter', sans-serif", color: '#6B6369' }}>
+                        {item.product.price.toFixed(2)} Lei
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ fontFamily: "'Inter', sans-serif", fontWeight: 600, color: '#8C5E6B' }}>
+                        {(item.product.price * item.quantity).toFixed(2)} Lei
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <IconButton onClick={() => handleIncrement(item)} size="small" sx={{ color: '#8C5E6B' }}><AddIcon fontSize="small" /></IconButton>
+                      <IconButton onClick={() => handleDecrement(item)} disabled={item.quantity<=1} size="small" sx={{ color: '#8C5E6B' }}><RemoveIcon fontSize="small" /></IconButton>
+                      <IconButton onClick={() => setConfirmDelete({open:true,item})} size="small" sx={{ color: '#C45B5B' }}><DeleteIcon fontSize="small" /></IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </Box>
 
-          {/* Always-visible Checkout Button */}
-          <Box sx={{ mt: 2 }}>
-            <Button variant="contained" onClick={handleCheckoutClick}>
-              Checkout
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              mt: 3,
+              p: 3,
+              backgroundColor: '#fff',
+              borderRadius: '12px',
+              border: '1px solid #E8DDD9',
+            }}
+          >
+            <Typography
+              variant="h6"
+              sx={{
+                fontFamily: "'Poppins', sans-serif",
+                fontWeight: 600,
+                color: '#2D2A2E',
+              }}
+            >
+              Total: <span style={{ color: '#8C5E6B' }}>{totalPrice.toFixed(2)} Lei</span>
+            </Typography>
+            <Button
+              variant="contained"
+              onClick={handleCheckoutClick}
+              sx={{
+                backgroundColor: '#8C5E6B',
+                fontFamily: "'Inter', sans-serif",
+                fontWeight: 500,
+                textTransform: 'none',
+                fontSize: '0.95rem',
+                borderRadius: '10px',
+                px: 4,
+                py: 1.2,
+                '&:hover': { backgroundColor: '#6B4450' },
+              }}
+            >
+              Proceed to Checkout
             </Button>
           </Box>
         </>

@@ -36,9 +36,17 @@ const CheckoutForm = ({ open, onClose, onCheckout }) => {
     };
 
     return (
-        <Dialog open={open} onClose={onClose} fullWidth>
+        <Dialog open={open} onClose={onClose} fullWidth PaperProps={{ sx: { borderRadius: '16px' } }}>
             <>
-                <DialogTitle sx={{ m: 0, p: 2 }}>
+                <DialogTitle
+                    sx={{
+                        m: 0,
+                        p: 2.5,
+                        fontFamily: "'Poppins', sans-serif",
+                        fontWeight: 600,
+                        color: '#2D2A2E',
+                    }}
+                >
                     Enter Shipping Address
                     <IconButton
                         aria-label="close"
@@ -47,7 +55,7 @@ const CheckoutForm = ({ open, onClose, onCheckout }) => {
                             position: 'absolute',
                             right: 8,
                             top: 8,
-                            color: (theme) => theme.palette.grey[500],
+                            color: '#6B6369',
                         }}
                     >
                         <CloseIcon />
@@ -59,8 +67,23 @@ const CheckoutForm = ({ open, onClose, onCheckout }) => {
                         setShippingAddress={setShippingAddress}
                     />
                 </DialogContent>
-                <DialogActions sx={{ p: 2 }}>
-                    <Button variant="contained" onClick={handlePayNow}>Pay Now</Button>
+                <DialogActions sx={{ p: 2.5 }}>
+                    <Button
+                        variant="contained"
+                        onClick={handlePayNow}
+                        sx={{
+                            backgroundColor: '#8C5E6B',
+                            fontFamily: "'Inter', sans-serif",
+                            fontWeight: 500,
+                            textTransform: 'none',
+                            borderRadius: '10px',
+                            px: 4,
+                            py: 1.1,
+                            '&:hover': { backgroundColor: '#6B4450' },
+                        }}
+                    >
+                        Pay Now
+                    </Button>
                 </DialogActions>
             </>
         </Dialog>
