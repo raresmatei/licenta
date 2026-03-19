@@ -140,9 +140,13 @@ exports.handler = async (event) => {
       await Cart.findOneAndUpdate({ userId: order.userId }, { items: [], itemCount: 0 });
 
       // 3. Send confirmation e‑mail – fail‑loud so we see errors in logs
-      await sendConfirmationEmail(order);
-
-      console.log('[StripeWebhook] Order', order._id, 'marked paid & e‑mail sent');
+      try {
+        await sendConfirmationEmail(order);
+        console.log('[StripeWebhook] Order', order._id, 'marked paid & e‑mail sent');
+      } catch (emailErr) {
+        console.error('[StripeWebhook] Email/PDF error:', emailErr.message, emailErr.stack);
+        // Don't fail the whole webhook — order is already marked paid
+      }
     } catch (err) {
       console.error('[StripeWebhook] Handler error', err);
       // Let Stripe retry by returning 500 – unless you store retries elsewhere

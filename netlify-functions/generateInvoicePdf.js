@@ -12,8 +12,8 @@ const PDFDocument = require('pdfkit');
 const path = require('path');
 
 /* ---- font paths (Roboto supports Romanian diacritics) ---- */
-const FONT_REGULAR = path.join(__dirname, 'fonts', 'Roboto-Regular.ttf');
-const FONT_BOLD    = path.join(__dirname, 'fonts', 'Roboto-Bold.ttf');
+const FONT_REGULAR = path.join(__dirname, 'functions', 'fonts', 'Roboto-Regular.ttf');
+const FONT_BOLD    = path.join(__dirname, 'functions', 'fonts', 'Roboto-Bold.ttf');
 
 /* ---- colour palette (matches Mara Cosmetics branding) ---- */
 const BRAND      = '#8C5E6B';
