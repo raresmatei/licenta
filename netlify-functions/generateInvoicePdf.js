@@ -9,6 +9,11 @@
  */
 
 const PDFDocument = require('pdfkit');
+const path = require('path');
+
+/* ---- font paths (Roboto supports Romanian diacritics) ---- */
+const FONT_REGULAR = path.join(__dirname, 'fonts', 'Roboto-Regular.ttf');
+const FONT_BOLD    = path.join(__dirname, 'fonts', 'Roboto-Bold.ttf');
 
 /* ---- colour palette (matches Mara Cosmetics branding) ---- */
 const BRAND      = '#8C5E6B';
@@ -42,6 +47,10 @@ async function generateInvoicePdf(order) {
   const doc = new PDFDocument({ size: 'A4', margin: 50 });
   const bufferPromise = docToBuffer(doc);
 
+  /* Register Roboto fonts (supports Romanian diacritics: ă, â, î, ș, ț) */
+  doc.registerFont('Roboto', FONT_REGULAR);
+  doc.registerFont('Roboto-Bold', FONT_BOLD);
+
   const pageWidth = doc.page.width - 100; // 50 margin each side
 
   /* ==================================================================
@@ -50,21 +59,21 @@ async function generateInvoicePdf(order) {
   doc
     .fillColor(BRAND)
     .fontSize(22)
-    .font('Helvetica-Bold')
+    .font('Roboto-Bold')
     .text('Mara Cosmetics', 50, 50);
 
   doc
     .fillColor(GREY)
     .fontSize(9)
-    .font('Helvetica')
+    .font('Roboto')
     .text('maracosmetics12@gmail.com', 50, 76)
-    .text('www.maracosmetics.com', 50, 88);
+    .text('https://mara-cosmetics.netlify.app', 50, 88);
 
   /* "INVOICE" label – right-aligned */
   doc
     .fillColor(BRAND)
     .fontSize(28)
-    .font('Helvetica-Bold')
+    .font('Roboto-Bold')
     .text('INVOICE', 350, 50, { width: pageWidth - 300, align: 'right' });
 
   /* ==================================================================
@@ -72,26 +81,26 @@ async function generateInvoicePdf(order) {
      ================================================================== */
   const metaTop = 120;
 
-  doc.fillColor(DARK).fontSize(10).font('Helvetica-Bold');
+  doc.fillColor(DARK).fontSize(10).font('Roboto-Bold');
   doc.text('Invoice No:', 50, metaTop);
-  doc.font('Helvetica').fillColor(GREY);
+  doc.font('Roboto').fillColor(GREY);
   doc.text(`#${order._id}`, 130, metaTop);
 
-  doc.font('Helvetica-Bold').fillColor(DARK);
+  doc.font('Roboto-Bold').fillColor(DARK);
   doc.text('Date:', 50, metaTop + 16);
-  doc.font('Helvetica').fillColor(GREY);
+  doc.font('Roboto').fillColor(GREY);
   doc.text(new Date(order.createdAt || Date.now()).toLocaleDateString('en-GB'), 130, metaTop + 16);
 
-  doc.font('Helvetica-Bold').fillColor(DARK);
+  doc.font('Roboto-Bold').fillColor(DARK);
   doc.text('Status:', 50, metaTop + 32);
-  doc.font('Helvetica').fillColor(GREY);
+  doc.font('Roboto').fillColor(GREY);
   doc.text('Paid', 130, metaTop + 32);
 
   /* Shipping address block – right side */
   const addr = order.shippingAddress || {};
-  doc.font('Helvetica-Bold').fontSize(10).fillColor(DARK);
+  doc.font('Roboto-Bold').fontSize(10).fillColor(DARK);
   doc.text('Ship To:', 350, metaTop);
-  doc.font('Helvetica').fillColor(GREY);
+  doc.font('Roboto').fillColor(GREY);
   doc.text(addr.fullName || '', 350, metaTop + 16);
   doc.text(addr.addressLine1 || '', 350, metaTop + 28);
   doc.text(`${addr.city || ''}, ${addr.state || ''} ${addr.zip || ''}`, 350, metaTop + 40);
@@ -116,7 +125,7 @@ async function generateInvoicePdf(order) {
     .rect(50, tableTop, pageWidth, 22)
     .fill(BRAND);
 
-  doc.fillColor('#fff').fontSize(9).font('Helvetica-Bold');
+  doc.fillColor('#fff').fontSize(9).font('Roboto-Bold');
   doc.text('#',        col.num  + 6, tableTop + 6, { width: 25 });
   doc.text('Product',  col.name + 4, tableTop + 6, { width: 250 });
   doc.text('Qty',      col.qty  + 4, tableTop + 6, { width: 50 });
@@ -141,7 +150,7 @@ async function generateInvoicePdf(order) {
     const qty   = item.quantity || 1;
     const lineTotal = price * qty;
 
-    doc.fillColor(DARK).fontSize(9).font('Helvetica');
+    doc.fillColor(DARK).fontSize(9).font('Roboto');
     doc.text(String(i + 1),              col.num  + 6, y + 2, { width: 25 });
     doc.text(name,                       col.name + 4, y + 2, { width: 250 });
     doc.text(String(qty),                col.qty  + 4, y + 2, { width: 50 });
@@ -164,7 +173,7 @@ async function generateInvoicePdf(order) {
   }, 0);
 
   // Subtotal
-  doc.font('Helvetica').fontSize(10).fillColor(GREY);
+  doc.font('Roboto').fontSize(10).fillColor(GREY);
   doc.text('Subtotal:', col.price - 20, y, { width: 80, align: 'right' });
   doc.text(`${subtotal.toFixed(2)} lei`, col.total + 4, y, { width: 80 });
 
@@ -179,7 +188,7 @@ async function generateInvoicePdf(order) {
   y += 10;
 
   // Grand Total
-  doc.font('Helvetica-Bold').fontSize(13).fillColor(BRAND);
+  doc.font('Roboto-Bold').fontSize(13).fillColor(BRAND);
   doc.text('Total:', col.price - 20, y, { width: 80, align: 'right' });
   doc.text(`${order.totalAmount.toFixed(2)} lei`, col.total + 4, y, { width: 100 });
 
@@ -189,7 +198,7 @@ async function generateInvoicePdf(order) {
   y += 50;
   hr(doc, y, pageWidth);
   y += 14;
-  doc.font('Helvetica').fontSize(8).fillColor(GREY);
+  doc.font('Roboto').fontSize(8).fillColor(GREY);
   doc.text(
     'Thank you for shopping with Mara Cosmetics! If you have any questions about your order, please contact us at maracosmetics12@gmail.com.',
     50, y,
