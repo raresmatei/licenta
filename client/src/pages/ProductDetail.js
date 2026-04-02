@@ -30,6 +30,7 @@ const ProductDetail = () => {
   }, [id, baseUrl, token]);
 
   const handleAdd = async () => {
+    if (product.stock != null && product.stock <= 0) return;
     await addToCart(product._id, 1);
     refreshCart();
   };
@@ -105,6 +106,19 @@ const ProductDetail = () => {
           >
             {product.price} lei
           </Typography>
+          {/* Stock indicator */}
+          <Typography
+            variant="body2"
+            sx={{
+              fontFamily: "'Inter', sans-serif",
+              fontWeight: 600,
+              fontSize: '0.9rem',
+              color: product.stock > 0 ? '#4CAF50' : '#C45B5B',
+              mb: 1,
+            }}
+          >
+            {product.stock > 0 ? `In Stock (${product.stock} available)` : 'Out of Stock'}
+          </Typography>
           <Typography
             variant="body1"
             sx={{
@@ -118,9 +132,10 @@ const ProductDetail = () => {
           </Typography>
           <Button
             variant="contained"
+            disabled={product.stock != null && product.stock <= 0}
             sx={{
               mt: 4,
-              backgroundColor: '#8C5E6B',
+              backgroundColor: (product.stock != null && product.stock <= 0) ? '#ccc' : '#8C5E6B',
               fontFamily: "'Inter', sans-serif",
               fontWeight: 500,
               textTransform: 'none',
@@ -128,11 +143,11 @@ const ProductDetail = () => {
               borderRadius: '10px',
               px: 4,
               py: 1.2,
-              '&:hover': { backgroundColor: '#6B4450' },
+              '&:hover': { backgroundColor: (product.stock != null && product.stock <= 0) ? '#ccc' : '#6B4450' },
             }}
             onClick={handleAdd}
           >
-            Add to Cart
+            {product.stock != null && product.stock <= 0 ? 'Out of Stock' : 'Add to Cart'}
           </Button>
         </CardContent>
       </Card>

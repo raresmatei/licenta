@@ -1,6 +1,8 @@
-import React, { useState, useMemo, useContext } from 'react';
-import { Box, Typography, Fab, Button, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
+import React, { useState, useMemo, useContext, useEffect, useRef } from 'react';
+import { Box, Typography, Fab, Button, FormControl, InputLabel, Select, MenuItem, TextField, InputAdornment } from '@mui/material';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import SearchIcon from '@mui/icons-material/Search';
+import ClearIcon from '@mui/icons-material/Clear';
 import { Link, useSearchParams } from 'react-router-dom';
 import InfiniteProductList from '../components/InfiniteProductList';
 import ProductFilter from '../components/ProductFilter';
@@ -12,15 +14,27 @@ const LandingPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showFilters, setShowFilters] = useState(false);
   const [sortOrder, setSortOrder] = useState('priceAsc');
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const debounceTimer = useRef(null);
 
-  // Build filters and include sort order
+  // Debounce search input by 400ms
+  useEffect(() => {
+    debounceTimer.current = setTimeout(() => {
+      setDebouncedSearch(searchInput);
+    }, 400);
+    return () => clearTimeout(debounceTimer.current);
+  }, [searchInput]);
+
+  // Build filters and include sort order + search
   const filters = useMemo(() => ({
     category: searchParams.get('category') || '',
     brand: searchParams.get('brand') || '',
     minPrice: searchParams.get('minPrice') || '0',
     maxPrice: searchParams.get('maxPrice') || '10000',
-    sort: sortOrder
-  }), [searchParams, sortOrder]);
+    sort: sortOrder,
+    search: debouncedSearch,
+  }), [searchParams, sortOrder, debouncedSearch]);
 
   const handleFilter = (newFilters) => setSearchParams(newFilters);
   const handleSortChange = (e) => setSortOrder(e.target.value);
@@ -39,7 +53,9 @@ const LandingPage = () => {
         p: 3,
       }}
     >
-      {products.map((product, idx) => (
+      {products.map((product, idx) => {
+        const outOfStock = product.stock != null && product.stock <= 0;
+        return (
         <Box key={product._id} {...(idx === products.length - 1 ? { ref: lastRef } : {})}>
           <Link to={`/product/${product._id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
             <Box
@@ -52,6 +68,7 @@ const LandingPage = () => {
                 height: '100%',
                 border: '1px solid #E8DDD9',
                 transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+                opacity: outOfStock ? 0.7 : 1,
                 '&:hover': {
                   transform: 'translateY(-4px)',
                   boxShadow: '0 8px 30px rgba(140,94,107,0.12)',
@@ -64,6 +81,26 @@ const LandingPage = () => {
                   alt={product.name}
                   style={{ width: '100%', height: '220px', objectFit: 'cover', display: 'block' }}
                 />
+                {outOfStock && (
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: 10,
+                      left: 10,
+                      backgroundColor: '#C45B5B',
+                      color: '#fff',
+                      px: 1.5,
+                      py: 0.5,
+                      borderRadius: '6px',
+                      fontSize: '0.72rem',
+                      fontFamily: "'Inter', sans-serif",
+                      fontWeight: 600,
+                      letterSpacing: '0.3px',
+                    }}
+                  >
+                    Out of Stock
+                  </Box>
+                )}
               </Box>
               <Box sx={{ p: 2.5, flexGrow: 1 }}>
                 <Typography
@@ -108,25 +145,27 @@ const LandingPage = () => {
                   variant="contained"
                   fullWidth
                   size="small"
+                  disabled={outOfStock}
                   onClick={(e) => { e.preventDefault(); handleAdd(product._id); }}
                   sx={{
-                    backgroundColor: '#8C5E6B',
+                    backgroundColor: outOfStock ? '#ccc' : '#8C5E6B',
                     fontFamily: "'Inter', sans-serif",
                     fontWeight: 500,
                     textTransform: 'none',
                     borderRadius: '8px',
                     py: 1,
                     fontSize: '0.85rem',
-                    '&:hover': { backgroundColor: '#6B4450' },
+                    '&:hover': { backgroundColor: outOfStock ? '#ccc' : '#6B4450' },
                   }}
                 >
-                  Add to Cart
+                  {outOfStock ? 'Out of Stock' : 'Add to Cart'}
                 </Button>
               </Box>
             </Box>
           </Link>
         </Box>
-      ))}
+        );
+      })}
     </Box>
   );
 
@@ -174,6 +213,43 @@ const LandingPage = () => {
           >
             Featured Products
           </Typography>
+
+          {/* Search Bar */}
+          <Box sx={{ display: 'flex', justifyContent: 'center', px: 3, mt: 1, mb: 1 }}>
+            <TextField
+              placeholder="Search products…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              size="small"
+              sx={{
+                width: '100%',
+                maxWidth: 540,
+                '& .MuiOutlinedInput-root': {
+                  fontFamily: "'Inter', sans-serif",
+                  borderRadius: '10px',
+                  backgroundColor: '#fff',
+                  '& fieldset': { borderColor: '#E8DDD9' },
+                  '&:hover fieldset': { borderColor: '#C9929D' },
+                  '&.Mui-focused fieldset': { borderColor: '#8C5E6B' },
+                },
+              }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ color: '#8C5E6B' }} />
+                  </InputAdornment>
+                ),
+                endAdornment: searchInput ? (
+                  <InputAdornment position="end">
+                    <ClearIcon
+                      sx={{ color: '#6B6369', cursor: 'pointer', fontSize: '1.1rem' }}
+                      onClick={() => setSearchInput('')}
+                    />
+                  </InputAdornment>
+                ) : null,
+              }}
+            />
+          </Box>
 
           {/* Sort Control – aligned with the first card column */}
           <Box

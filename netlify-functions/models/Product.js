@@ -9,6 +9,7 @@ const ProductSchema = new Schema({
   brand: { type: String, required: true },
   images: [{ type: String }], // Updated to store multiple images
   description: { type: String },
+  stock: { type: Number, required: true, default: 10, min: 0 },
 }, { timestamps: true });
 
 

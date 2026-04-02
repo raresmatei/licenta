@@ -75,6 +75,21 @@ const cartHandler = async (event, context) => {
                 };
             }
 
+            // Stock validation
+            const product = await Product.findById(data.productId);
+            if (!product) {
+                return {
+                    statusCode: 404,
+                    body: JSON.stringify({ error: 'Product not found' }),
+                };
+            }
+            if (product.stock <= 0) {
+                return {
+                    statusCode: 400,
+                    body: JSON.stringify({ error: 'This product is out of stock' }),
+                };
+            }
+
             let cart = await Cart.findOne({ userId });
             if (!cart) {
                 cart = new Cart({ userId, items: [] });
@@ -84,6 +99,21 @@ const cartHandler = async (event, context) => {
             const index = cart.items.findIndex(
                 item => item.product.toString() === data.productId
             );
+
+            const currentQty = index > -1 ? cart.items[index].quantity : 0;
+            const requestedQty = currentQty + data.quantity;
+
+            if (requestedQty > product.stock) {
+                return {
+                    statusCode: 400,
+                    body: JSON.stringify({
+                        error: `Only ${product.stock} items available in stock. You already have ${currentQty} in your cart.`,
+                        availableStock: product.stock,
+                        currentCartQty: currentQty,
+                    }),
+                };
+            }
+
             if (index > -1) {
                 // Increase the quantity if product exists
                 cart.items[index].quantity += data.quantity;
@@ -141,6 +171,17 @@ const cartHandler = async (event, context) => {
                 // Remove the item if quantity is 0
                 cart.items.splice(index, 1);
             } else {
+                // Stock validation on quantity update
+                const patchProduct = await Product.findById(data.productId);
+                if (patchProduct && data.quantity > patchProduct.stock) {
+                    return {
+                        statusCode: 400,
+                        body: JSON.stringify({
+                            error: `Only ${patchProduct.stock} items available in stock.`,
+                            availableStock: patchProduct.stock,
+                        }),
+                    };
+                }
                 // Update the quantity
                 cart.items[index].quantity = data.quantity;
             }

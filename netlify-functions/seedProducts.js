@@ -25,7 +25,9 @@ const createProductData = (filename) => {
     const category = 'Cosmetics';
     const brand = 'TestBrand';
     const description = `This is the ${name} product.`;
-    return { name, price, category, brand, description };
+    // ~10% chance of being out of stock, otherwise random stock 1-50
+    const stock = Math.random() < 0.1 ? 0 : Math.floor(Math.random() * 50) + 1;
+    return { name, price, category, brand, description, stock };
 };
 
 const seedProducts = async () => {
@@ -47,6 +49,7 @@ const seedProducts = async () => {
             formData.append('description', productData.description);
             formData.append('category', productData.category);
             formData.append('brand', productData.brand);
+            formData.append('stock', productData.stock);
             // Append file stream (as the 'images' field)
             formData.append('images', fs.createReadStream(filePath));
 

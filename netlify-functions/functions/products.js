@@ -83,6 +83,12 @@ const handler = async (event, context) => {
           }
         });
 
+        // Name search (case-insensitive partial match)
+        if (filters.search) {
+          filters.name = { $regex: filters.search, $options: 'i' };
+          delete filters.search;
+        }
+
         // Apply sorting
         let sortObj = {};
         if (filters.sort === 'priceAsc') {
@@ -131,7 +137,7 @@ const handler = async (event, context) => {
           imageUrls.push(uploadResult.secure_url);
         }
         // Extract text fields from the parsed result
-        const { name, price, description, category, brand } = result;
+        const { name, price, description, category, brand, stock } = result;
         const newProduct = new Product({
           name,
           price,
@@ -139,6 +145,7 @@ const handler = async (event, context) => {
           category,
           brand,
           images: imageUrls,
+          stock: stock != null ? parseInt(stock, 10) : 0,
         });
         await newProduct.save();
         return {
@@ -152,7 +159,7 @@ const handler = async (event, context) => {
         const result = await multipart.parse(event);
 
         // Extract text fields; expected fields: id, name, price, description, existingImages
-        const { id, name, price, description, existingImages, category, brand } = result;
+        const { id, name, price, description, existingImages, category, brand, stock } = result;
         if (!id) {
           return {
             statusCode: 400,
@@ -201,6 +208,7 @@ const handler = async (event, context) => {
           brand,
           images: mergedImages
         };
+        if (stock != null) updateData.stock = parseInt(stock, 10);
 
         const updatedProduct = await Product.findByIdAndUpdate(id, updateData, { new: true });
         if (!updatedProduct) {

@@ -1,5 +1,5 @@
 // client/src/pages/AdminDashboard.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Container,
   Typography,
@@ -21,9 +21,12 @@ import {
   Select,
   MenuItem,
   FormHelperText,
-  IconButton
+  IconButton,
+  InputAdornment
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import SearchIcon from '@mui/icons-material/Search';
+import ClearIcon from '@mui/icons-material/Clear';
 import { useNavigate } from 'react-router-dom';
 import {jwtDecode} from 'jwt-decode';
 import axios from 'axios';
@@ -37,6 +40,27 @@ const AdminDashboard = () => {
   // State for filter usage.
   const [filters, setFilters] = useState({});
   const [showFilters, setShowFilters] = useState(false);
+
+  // Search state with debounce
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const debounceTimer = useRef(null);
+
+  useEffect(() => {
+    debounceTimer.current = setTimeout(() => {
+      setDebouncedSearch(searchInput);
+    }, 400);
+    return () => clearTimeout(debounceTimer.current);
+  }, [searchInput]);
+
+  // Merge debounced search into filters whenever either changes
+  useEffect(() => {
+    setFilters(prev => {
+      const next = { ...prev, search: debouncedSearch };
+      if (!debouncedSearch) delete next.search;
+      return next;
+    });
+  }, [debouncedSearch]);
 
   // State to force re-fetch of products.
   const [refreshCounter, setRefreshCounter] = useState(0);
@@ -52,6 +76,7 @@ const AdminDashboard = () => {
     description: '',
     brand: '',
     category: '',
+    stock: '',
     images: [] // Array of File objects or image URL strings.
   });
   const [isSaving, setIsSaving] = useState(false);
@@ -98,10 +123,20 @@ const AdminDashboard = () => {
   }, [baseUrl, token, categoryRefresh]);
 
   // Prevent repeated updates by checking if new filters differ from current ones.
+  // Preserve the current search term when merging filters from ProductFilter.
   const handleFilterUpdate = (newFilters) => {
-    if (JSON.stringify(newFilters) !== JSON.stringify(filters)) {
-      setFilters(newFilters);
-    }
+    setFilters(prev => {
+      const merged = { ...newFilters };
+      if (prev.search) {
+        merged.search = prev.search;
+      } else {
+        delete merged.search;
+      }
+      if (JSON.stringify(merged) !== JSON.stringify(prev)) {
+        return merged;
+      }
+      return prev;
+    });
   };
 
   // Open the dialog for creating a new product.
@@ -113,6 +148,7 @@ const AdminDashboard = () => {
       description: '',
       brand: '',
       category: '',
+      stock: '',
       images: []
     });
     setDialogOpen(true);
@@ -153,6 +189,7 @@ const AdminDashboard = () => {
     formDataToSend.append('description', formData.description);
     formDataToSend.append('brand', formData.brand);
     formDataToSend.append('category', formData.category);
+    formDataToSend.append('stock', formData.stock || '0');
     if (editingProduct) {
       formDataToSend.append('id', formData.id);
     }
@@ -212,7 +249,8 @@ const AdminDashboard = () => {
       images: product.images,
       description: product.description,
       brand: product.brand,
-      category: product.category
+      category: product.category,
+      stock: product.stock != null ? product.stock : 0
     });
     setDialogOpen(true);
   };
@@ -264,6 +302,7 @@ const AdminDashboard = () => {
         <TableRow sx={{ backgroundColor: '#FAF5F3' }}>
           <TableCell sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: '0.85rem', color: '#2D2A2E' }}>Name</TableCell>
           <TableCell sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: '0.85rem', color: '#2D2A2E' }}>Price</TableCell>
+          <TableCell sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: '0.85rem', color: '#2D2A2E' }}>Stock</TableCell>
           <TableCell sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: '0.85rem', color: '#2D2A2E' }}>Image</TableCell>
           <TableCell sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: '0.85rem', color: '#2D2A2E' }}>Description</TableCell>
           <TableCell sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: '0.85rem', color: '#2D2A2E' }}>Actions</TableCell>
@@ -276,6 +315,18 @@ const AdminDashboard = () => {
             <TableRow key={product._id} {...refProp} sx={{ '&:last-child td': { borderBottom: 0 } }}>
               <TableCell sx={{ fontFamily: "'Inter', sans-serif", fontWeight: 500 }}>{product.name}</TableCell>
               <TableCell sx={{ fontFamily: "'Inter', sans-serif", color: '#8C5E6B', fontWeight: 600 }}>{parseFloat(product.price).toFixed(2)} Lei</TableCell>
+              <TableCell>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontFamily: "'Inter', sans-serif",
+                    fontWeight: 600,
+                    color: product.stock > 0 ? '#4CAF50' : '#C45B5B',
+                  }}
+                >
+                  {product.stock != null ? product.stock : 0}
+                </Typography>
+              </TableCell>
               <TableCell>
                 <img src={product.images[0]} alt={product.name} width={50} height={50} style={{ borderRadius: '8px', objectFit: 'cover', border: '1px solid #E8DDD9' }} />
               </TableCell>
@@ -345,7 +396,7 @@ const AdminDashboard = () => {
         >
           Admin Dashboard
         </Typography>
-        <Box sx={{ display: 'flex', gap: 2, mb: 1 }}>
+        <Box sx={{ display: 'flex', gap: 2, mb: 1, alignItems: 'center', flexWrap: 'wrap' }}>
           <Button
             variant="contained"
             onClick={handleDialogOpen}
@@ -361,6 +412,38 @@ const AdminDashboard = () => {
           >
             Add Product
           </Button>
+          <TextField
+            placeholder="Search products…"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            size="small"
+            sx={{
+              minWidth: 260,
+              '& .MuiOutlinedInput-root': {
+                fontFamily: "'Inter', sans-serif",
+                borderRadius: '10px',
+                backgroundColor: '#FAF5F3',
+                '& fieldset': { borderColor: '#E8DDD9' },
+                '&:hover fieldset': { borderColor: '#C9929D' },
+                '&.Mui-focused fieldset': { borderColor: '#8C5E6B' },
+              },
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ color: '#8C5E6B' }} />
+                </InputAdornment>
+              ),
+              endAdornment: searchInput ? (
+                <InputAdornment position="end">
+                  <ClearIcon
+                    sx={{ color: '#6B6369', cursor: 'pointer', fontSize: '1.1rem' }}
+                    onClick={() => setSearchInput('')}
+                  />
+                </InputAdornment>
+              ) : null,
+            }}
+          />
         </Box>
       </Paper>
 
@@ -426,6 +509,18 @@ const AdminDashboard = () => {
             variant="outlined"
             value={formData.price}
             onChange={handleFormChange}
+          />
+          <TextField
+            margin="dense"
+            label="Stock"
+            name="stock"
+            type="number"
+            fullWidth
+            variant="outlined"
+            value={formData.stock}
+            onChange={handleFormChange}
+            inputProps={{ min: 0 }}
+            helperText="Set to 0 for out-of-stock"
           />
           <TextField
             margin="dense"

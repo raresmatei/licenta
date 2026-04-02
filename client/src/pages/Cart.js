@@ -13,7 +13,9 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions
+  DialogActions,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
@@ -28,6 +30,7 @@ const Cart = () => {
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [cartProducts, setCartProducts] = useState([]);
+  const [stockWarning, setStockWarning] = useState('');
 
   const { cart = { items: [], itemCount: 0 }, updateQuantity, token } = useContext(CartContext);
   const items = useMemo(() => cart.items || [], [cart.items]);
@@ -55,7 +58,13 @@ const Cart = () => {
     loadProducts();
   }, [items, baseUrl, token]);
 
-  const handleIncrement = (item) => updateQuantity(item.product._id, item.quantity + 1);
+  const handleIncrement = (item) => {
+    if (item.product.stock != null && item.quantity >= item.product.stock) {
+      setStockWarning(`Only ${item.product.stock} of "${item.product.name}" available.`);
+      return;
+    }
+    updateQuantity(item.product._id, item.quantity + 1);
+  };
   const handleDecrement = (item) => updateQuantity(item.product._id, item.quantity - 1);
   const handleDelete = (item) => updateQuantity(item.product._id, 0);
 
@@ -172,6 +181,7 @@ const Cart = () => {
                 <TableRow sx={{ backgroundColor: '#FAF5F3' }}>
                   <TableCell sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, color: '#2D2A2E', fontSize: '0.85rem' }}>Product</TableCell>
                   <TableCell sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, color: '#2D2A2E', fontSize: '0.85rem' }}>Quantity</TableCell>
+                  <TableCell sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, color: '#2D2A2E', fontSize: '0.85rem' }}>Stock</TableCell>
                   <TableCell sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, color: '#2D2A2E', fontSize: '0.85rem' }}>Unit Price</TableCell>
                   <TableCell sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, color: '#2D2A2E', fontSize: '0.85rem' }}>Total Price</TableCell>
                   <TableCell sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, color: '#2D2A2E', fontSize: '0.85rem' }}>Actions</TableCell>
@@ -212,6 +222,18 @@ const Cart = () => {
                       </Typography>
                     </TableCell>
                     <TableCell>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontFamily: "'Inter', sans-serif",
+                          fontWeight: 600,
+                          color: item.product.stock > 0 ? '#4CAF50' : '#C45B5B',
+                        }}
+                      >
+                        {item.product.stock != null ? item.product.stock : '—'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
                       <Typography variant="body2" sx={{ fontFamily: "'Inter', sans-serif", color: '#6B6369' }}>
                         {item.product.price.toFixed(2)} Lei
                       </Typography>
@@ -222,7 +244,7 @@ const Cart = () => {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <IconButton onClick={() => handleIncrement(item)} size="small" sx={{ color: '#8C5E6B' }}><AddIcon fontSize="small" /></IconButton>
+                      <IconButton onClick={() => handleIncrement(item)} disabled={item.product.stock != null && item.quantity >= item.product.stock} size="small" sx={{ color: '#8C5E6B' }}><AddIcon fontSize="small" /></IconButton>
                       <IconButton onClick={() => handleDecrement(item)} disabled={item.quantity<=1} size="small" sx={{ color: '#8C5E6B' }}><RemoveIcon fontSize="small" /></IconButton>
                       <IconButton onClick={() => setConfirmDelete({open:true,item})} size="small" sx={{ color: '#C45B5B' }}><DeleteIcon fontSize="small" /></IconButton>
                     </TableCell>
@@ -308,6 +330,18 @@ const Cart = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Stock Warning Snackbar */}
+      <Snackbar
+        open={!!stockWarning}
+        autoHideDuration={3000}
+        onClose={() => setStockWarning('')}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setStockWarning('')} severity="warning" sx={{ width: '100%' }}>
+          {stockWarning}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };

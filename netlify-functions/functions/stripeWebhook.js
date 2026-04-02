@@ -139,6 +139,14 @@ exports.handler = async (event) => {
       // 2. Clear cart (best‑effort)
       await Cart.findOneAndUpdate({ userId: order.userId }, { items: [], itemCount: 0 });
 
+      // 2b. Decrease stock for each product in the order
+      for (const item of order.products) {
+        const productId = item.product._id || item.product;
+        await Product.findByIdAndUpdate(productId, {
+          $inc: { stock: -(item.quantity) }
+        });
+      }
+
       // 3. Send confirmation e‑mail – fail‑loud so we see errors in logs
       try {
         await sendConfirmationEmail(order);

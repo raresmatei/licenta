@@ -136,6 +136,8 @@ async function seedProducts() {
             formData.append('description', prod.description);
             formData.append('category', prod.category);
             formData.append('brand', prod.brand);
+            // ~10% chance of being out of stock, otherwise random stock 1-50
+            formData.append('stock', Math.random() < 0.1 ? 0 : Math.floor(Math.random() * 50) + 1);
             // Assume JPEG for downloaded image; adjust if needed
             formData.append('images', imageBuffer, { filename: `${prod.name.replace(/\s+/g, '_').toLowerCase()}.jpg`, contentType: 'image/jpeg' });
 
